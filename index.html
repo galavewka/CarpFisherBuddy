@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FishBuddy Rebuild</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+<style>
+body{margin:0;font-family:Arial;background:#0f172a;color:#fff}
+header,.toolbar{background:#111827}
+header{padding:12px;text-align:center;font-weight:bold}
+.toolbar{display:flex;gap:8px;padding:8px;flex-wrap:wrap}
+button{padding:10px;border:none;border-radius:8px;background:#22d3ee;color:#000;cursor:pointer;font-weight:bold}
+#map{height:40vh;position:relative;z-index:1}
+.card{background:#111827;border:1px solid #22d3ee;border-radius:10px;margin:10px;padding:10px}
+
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:20000}
+.box{background:#111827;padding:15px;border-radius:10px;width:90%;max-width:420px;border:1px solid #22d3ee}
+input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px}
+
+#placeMode{display:none;position:fixed;inset:0;z-index:3000;background:#000}
+#placeMap{height:100vh;width:100vw;position:absolute;top:0;left:0;z-index:1}
+#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:42px;color:#ff00ff;pointer-events:none;z-index:1000;font-weight:bold}
+#hud{position:absolute;top:10px;left:10px;right:10px;background:#111827;padding:10px;z-index:1000;border-radius:8px;border:1px solid #22d3ee;text-align:center}
+#placeBtns{position:absolute;bottom:20px;left:10px;right:10px;display:flex;gap:10px;z-index:1000}
+#placeBtns button {flex:1}
+.fish-badge {background:#1e293b; padding:6px 8px; border-radius:4px; margin:4px 0; display:block; font-size: 0.9em; border: 1px solid #334155;}
+.remove-btn {background:#ef4444; color:white; padding:4px 8px; font-size:11px; margin-top:5px; border-radius:4px; width:100%; text-align:center; border:none; cursor:pointer;}
+.time-tag {font-size:0.75em; color:#94a3b8; display:block; margin-top:2px;}
+</style>
+</head>
+<body>
+<header>🎣 FishBuddy</header>
+
+<div class="toolbar">
+<button onclick="beginSpot()">📍 Add Spot</button>
+<button onclick="openSession()">🎣 New Session</button>
+</div>
+
+<div id="map"></div>
+
+<div id="active"></div>
+
+<div class="card">
+<h3>Session History</h3>
+<div id="history"></div>
+</div>
+
+<div class="modal" id="sessionModal"><div class="box">
+<h3>New Session</h3>
+<input id="sessionName" placeholder="Session Name">
+<select id="spotSelect"></select>
+<button onclick="createSession()">Start Session</button>
+<button onclick="document.getElementById('sessionModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+</div></div>
+
+<div class="modal" id="fishModal"><div class="box">
+<h3>Add Fish</h3>
+<input id="species" placeholder="Species">
+<input id="weight" placeholder="Weight kg">
+<input id="length" placeholder="Length cm">
+<input id="bait" placeholder="Bait">
+<button onclick="saveFish()">Save Fish</button>
+<button onclick="document.getElementById('fishModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+</div></div>
+
+<div class="modal" id="textModal"><div class="box">
+<h3 id="textTitle"></h3>
+<input id="textInput">
+<button onclick="finishPlacement()">Save</button>
+<button onclick="document.getElementById('textModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+</div></div>
+
+<div id="placeMode">
+<div id="placeMap"></div>
+<div id="cross">+</div>
+<div id="hud"><span id="hudText">Move map</span></div>
+<div id="placeBtns">
+<button onclick="cancelPlace()" style="background:#ef4444; color:white;">Cancel</button>
+<button onclick="acceptPlace()" style="background:#22c55e; color:black;">Select Location</button>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
+const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
+
+const map=L.map('map').setView([50.45,30.52],12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let me=null, placeMap=null, myPos=null;
+navigator.geolocation.watchPosition(p=>{
+ myPos=[p.coords.latitude,p.coords.longitude];
+ const icon=L.divIcon({html:"🙂",className:""});
+ 
+ if(!me){ me=L.marker(myPos,{icon}).addTo(map); map.setView(myPos,15); }
+ else me.setLatLng(myPos);
+
+ redraw();
+}, err=>console.log("Location access unavailable."));
+
+function activeSession(){ return db.sessions.find(x=>x.status==="active"); }
+
+// Helper calculation anchor resolver
+function getCalculatedAnchor(sess) {
+   if (sess && sess.customBase) return [sess.customBase.lat, sess.customBase.lng];
+   return myPos;
+}
+
+let layers=[];
+let placeLayers=[];
+
+function redraw(){
+ layers.forEach(x=>map.removeLayer(x)); layers=[];
+ placeLayers.forEach(x=>{ if(placeMap) placeMap.removeLayer(x); }); placeLayers=[];
+
+ const drawToBoth = (element) => {
+    layers.push(element.addTo(map));
+    if(placeMap) {
+       let clone;
+       if(element instanceof L.Marker) {
+          clone = L.marker(element.getLatLng(), {icon: element.options.icon});
+          if(element.getPopup()) clone.bindPopup(element.getPopup().getContent());
+       } else if(element instanceof L.CircleMarker) {
+          clone = L.circleMarker(element.getLatLng(), element.options);
+          if(element.getPopup()) clone.bindPopup(element.getPopup().getContent());
+       } else if(element instanceof L.Polyline) {
+          clone = L.polyline(element.getLatLngs(), element.options);
+       }
+       if(clone) placeLayers.push(clone.addTo(placeMap));
+    }
+ };
+
+ db.spots.forEach(s=>{
+   drawToBoth(L.marker([s.lat,s.lng]).bindPopup("📍 "+s.name));
+ });
+
+ db.sessions.forEach(sess=>{
+   const anchor = getCalculatedAnchor(sess);
+
+   if(sess.customBase){
+      drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓ Manual Base Position ("+sess.name+")"));
+   }
+   sess.baits.forEach((b, index)=>{
+      let baitMarker = L.circleMarker([b.lat,b.lng],{color:"yellow", radius:6});
+      let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">❌ Remove</button></div>`;
+      baitMarker.bindPopup(popupContent);
+      drawToBoth(baitMarker);
+
+      if(anchor) {
+         drawToBoth(L.polyline([anchor, [b.lat, b.lng]], {color:"#eab308", dashArray:"8,8", weight: 2}));
+      }
+   });
+   sess.casts.forEach((c, index)=>{
+      let castMarker = L.circleMarker([c.lat,c.lng],{color:"#ef4444", fillColor:"#ef4444", fillOpacity: 0.8, radius:5});
+      let popupContent = `<div>🚀 ${c.desc}<br>${c.distance}m from base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">❌ Remove</button></div>`;
+      castMarker.bindPopup(popupContent);
+      drawToBoth(castMarker);
+
+      if(anchor) {
+         drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2}));
+      }
+   });
+ });
+
+ if(myPos && placeMap) {
+    const iconPlace=L.divIcon({html:"🙂",className:""});
+    placeLayers.push(L.marker(myPos,{icon: iconPlace}).addTo(placeMap));
+ }
+}
+
+function removeItem(type, sessionId, index) {
+  const sess = db.sessions.find(x => x.id === sessionId);
+  if(sess && sess[type]) {
+     sess[type].splice(index, 1);
+     persist(); redraw(); render();
+  }
+}
+
+function render(){
+ const a=activeSession();
+ document.getElementById("active").innerHTML = a ? `
+ <div class="card" style="border-color: #22c55e;">
+ <b>🟢 Active Session: ${a.name}</b><br>
+ 📍 Spot: ${a.spotName}<br>
+ 🕒 Started: ${a.startTime || 'Just Now'}<br>
+ 🗺️ Base: ${a.customBase ? '📌 Manually Placed' : '📱 Live GPS (Default)'}<br><br>
+ 🐟 Catches: ${a.fish.length} | 🎯 Baits: ${a.baits.length} | 🚀 Casts: ${a.casts.length}<br><br>
+ <button onclick="startBase()" style="background:#a855f7; color:#fff;">📍 Set Base Position</button>
+ <button onclick="openFish()">🐟 Add Fish</button>
+ <button onclick="startBait()">🎯 Add Bait</button>
+ <button onclick="startCast()">🚀 Add Cast</button>
+ <button onclick="endSession()" style="background:#ef4444; color:#fff;">End Session</button>
+ </div>` : `<div class="card">No active session running</div>`;
+
+ let h="";
+ [...db.sessions].reverse().forEach(s=>{
+   let statusText = s.status === "active" ? "🟢 Active" : `🏁 Ended at ${s.endTime || 'N/A'}`;
+   h+=`<div class="card"><b>${s.name}</b> (${statusText})<br>📍 ${s.spotName}<br><span style="font-size:0.8em; color:#94a3b8;">📅 Started: ${s.startTime || 'N/A'}</span>`;
+   
+   if(s.fish && s.fish.length > 0){
+      h+=`<div style="margin-top:8px; font-weight:bold;">Fish Caught (${s.fish.length}):</div>`;
+      s.fish.forEach(f=>{
+         h+=`<div class="fish-badge">
+               🐟 <b>${f.species}</b> — ⚖️ ${f.weight}kg | 📏 ${f.length}cm (Bait: ${f.bait||'None'})
+               <span class="time-tag">⏱️ Caught at: ${f.time || 'N/A'}</span>
+             </div>`;
+      });
+   } else {
+      h+=`<div style="margin-top:8px; color:#64748b; font-size:0.9em;">No fish logged this session.</div>`;
+   }
+   h+="</div>";
+ });
+ document.getElementById("history").innerHTML=h;
+}
+
+function openSession(){
+ if(!db.spots.length) return alert("Please create a spot location first!");
+ const spotSelect = document.getElementById("spotSelect");
+ spotSelect.innerHTML="";
+ db.spots.forEach(s=>spotSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+ document.getElementById("sessionModal").style.display="flex";
+}
+
+function createSession(){
+ const spotSelect = document.getElementById("spotSelect");
+ const sessionName = document.getElementById("sessionName");
+ const sp=db.spots.find(x=>x.id===spotSelect.value);
+ if(!sp) return;
+ 
+ const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+ db.sessions.push({
+   id:crypto.randomUUID(),
+   name:sessionName.value||"Session "+(db.sessions.length+1),
+   spotName:sp.name,
+   spotId:sp.id,
+   status:"active",
+   startTime: now,
+   endTime: null,
+   customBase:null,
+   fish:[],
+   baits:[],
+   casts:[]
+ });
+ document.getElementById("sessionModal").style.display="none";
+ sessionName.value = "";
+ persist(); redraw(); render();
+}
+
+function openFish(){ document.getElementById("fishModal").style.display="flex"; }
+function saveFish(){
+ const s=activeSession();
+ if(!s) return;
+ const species = document.getElementById("species");
+ const weight = document.getElementById("weight");
+ const length = document.getElementById("length");
+ const bait = document.getElementById("bait");
+ const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+ s.fish.push({
+   species:species.value||"Unknown Fish",
+   weight:weight.value||"0",
+   length:length.value||"0",
+   bait:bait.value||"None",
+   time: now
+ });
+ document.getElementById("fishModal").style.display="none";
+ species.value=weight.value=length.value=bait.value="";
+ persist(); redraw(); render();
+}
+
+let mode=null, distance=0;
+
+function beginSpot(){ mode="spot"; openPlace(); }
+function startBase(){ mode="base"; openPlace(); }
+function startBait(){
+ const s=activeSession(); if(!s) return;
+ mode="bait"; openPlace();
+}
+function startCast(){
+ const s=activeSession(); if(!s) return;
+ mode="cast"; openPlace();
+}
+
+function openPlace(){
+ document.getElementById("placeMode").style.display="block";
+ if(!placeMap){
+   placeMap=L.map('placeMap').setView(map.getCenter(),map.getZoom());
+   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(placeMap);
+   placeMap.on('move',updateHud);
+ } else {
+   placeMap.setView(map.getCenter(),map.getZoom());
+ }
+ setTimeout(()=>{
+   placeMap.invalidateSize();
+   redraw();
+ },150);
+}
+
+function updateHud(){
+ const hudText = document.getElementById("hudText");
+ if(mode==="spot") hudText.innerText="Center crosshair over map location to save spot";
+ else if(mode==="base") hudText.innerText="Center crosshair to set a custom baseline anchor point";
+ else{
+   const c=placeMap.getCenter();
+   const anchor = getCalculatedAnchor(activeSession());
+   if (anchor) {
+      distance=Math.round(placeMap.distance(anchor,[c.lat,c.lng]));
+      hudText.innerText = (activeSession()?.customBase ? "Distance from Manual Base: " : "Distance from GPS: ") + distance + "m";
+   } else {
+      distance = 0;
+      hudText.innerText="Waiting for base coordinates...";
+   }
+ }
+}
+
+function cancelPlace(){ 
+  document.getElementById("placeMode").style.display="none"; 
+}
+
+function acceptPlace() {
+ const textTitle = document.getElementById("textTitle");
+ const textInput = document.getElementById("textInput");
+ const c=placeMap.getCenter();
+
+ if(mode==="spot"){
+   textTitle.innerText="Enter Spot Name";
+   textInput.value="";
+   document.getElementById("textModal").style.display="flex";
+   return;
+ }
+
+ if(mode==="base"){
+   const s = activeSession();
+   if(s) s.customBase={lat:c.lat,lng:c.lng};
+   persist(); redraw(); render(); cancelPlace();
+   return;
+ }
+
+ textTitle.innerText = mode==="bait" ? "Enter Bait Description" : "Enter Cast Description";
+ textInput.value="";
+ document.getElementById("textModal").style.display="flex";
+}
+
+function finishPlacement(){
+ const c=placeMap.getCenter();
+ const s=activeSession();
+ const textInput = document.getElementById("textInput");
+
+ if(mode==="spot"){
+   db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Spot",lat:c.lat,lng:c.lng});
+   persist(); redraw();
+ }
+
+ if(mode==="bait" && s){
+   s.baits.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Bait Spot"});
+   persist(); redraw(); render();
+ }
+
+ if(mode==="cast" && s){
+   s.casts.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Cast"});
+   persist(); redraw(); render();
+ }
+
+ document.getElementById("textModal").style.display="none";
+ cancelPlace();
+}
+
+function endSession(){
+ const s=activeSession();
+ if(!s) return;
+ s.status="completed";
+ s.endTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+ persist(); redraw(); render();
+}
+
+redraw(); render();
+</script>
+</body>
+</html>
