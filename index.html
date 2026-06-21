@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -14,6 +15,10 @@ button{padding:10px;border:none;border-radius:8px;background:#22d3ee;color:#000;
 #map{height:40vh;position:relative;z-index:1}
 .card{background:#111827;border:1px solid #22d3ee;border-radius:10px;margin:10px;padding:10px}
 
+/* Leaflet theme adjustments for dark mode layer control */
+.leaflet-control-layers { background: #111827 !important; color: #fff !important; border: 1px solid #22d3ee !important; border-radius: 8px !important; }
+.leaflet-control-layers-toggle { filter: invert(1); }
+
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:20000}
 .box{background:#111827;padding:15px;border-radius:10px;width:90%;max-width:420px;border:1px solid #22d3ee}
 input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px}
@@ -27,6 +32,7 @@ input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;backgrou
 .fish-badge {background:#1e293b; padding:6px 8px; border-radius:4px; margin:4px 0; display:block; font-size: 0.9em; border: 1px solid #334155;}
 .remove-btn {background:#ef4444; color:white; padding:4px 8px; font-size:11px; margin-top:5px; border-radius:4px; width:100%; text-align:center; border:none; cursor:pointer;}
 .time-tag {font-size:0.75em; color:#94a3b8; display:block; margin-top:2px;}
+.preview-btn {background:#eab308; color:#000; padding:6px 12px; margin-top:8px; border-radius:6px; font-size:0.85em; display:inline-block;}
 </style>
 </head>
 <body>
@@ -86,10 +92,19 @@ input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;backgrou
 let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
 const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
 
-const map=L.map('map').setView([50.45,30.52],12);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// Layer Configuration Definitions
+const streetTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+const satTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxZoom: 19,
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+});
 
-let me=null, placeMap=null, myPos=null;
+const map=L.map('map', { layers: [streetTiles] }).setView([50.45,30.52],12);
+
+// Add Layout selector to main map
+L.control.layers({ "Regular Layout": streetTiles, "Satellite Layout": satTiles }, null, { position: 'topright' }).addTo(map);
+
+let me=null, placeMap=null, myPos=null, previewSessionId=null;
 navigator.geolocation.watchPosition(p=>{
  myPos=[p.coords.latitude,p.coords.longitude];
  const icon=L.divIcon({html:"🙂",className:""});
@@ -102,7 +117,6 @@ navigator.geolocation.watchPosition(p=>{
 
 function activeSession(){ return db.sessions.find(x=>x.status==="active"); }
 
-// Helper calculation anchor resolver
 function getCalculatedAnchor(sess) {
    if (sess && sess.customBase) return [sess.customBase.lat, sess.customBase.lng];
    return myPos;
@@ -137,6 +151,8 @@ function redraw(){
  });
 
  db.sessions.forEach(sess=>{
+   if(sess.status !== "active" && sess.id !== previewSessionId) return;
+
    const anchor = getCalculatedAnchor(sess);
 
    if(sess.customBase){
@@ -178,13 +194,40 @@ function removeItem(type, sessionId, index) {
   }
 }
 
+function previewSession(sessionId) {
+  if(previewSessionId === sessionId) {
+     previewSessionId = null;
+  } else {
+     previewSessionId = sessionId;
+     const sess = db.sessions.find(x => x.id === sessionId);
+     if(sess) {
+        let targetLatLng = null;
+        if(sess.customBase) {
+           targetLatLng = [sess.customBase.lat, sess.customBase.lng];
+        } else {
+           const spotObj = db.spots.find(x => x.id === sess.spotId);
+           if(spotObj) targetLatLng = [spotObj.lat, spotObj.lng];
+        }
+        if(targetLatLng) map.setView(targetLatLng, 16);
+     }
+  }
+  redraw(); render();
+}
+
+function getFormattedDate(d) {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
 function render(){
  const a=activeSession();
  document.getElementById("active").innerHTML = a ? `
  <div class="card" style="border-color: #22c55e;">
  <b>🟢 Active Session: ${a.name}</b><br>
  📍 Spot: ${a.spotName}<br>
- 🕒 Started: ${a.startTime || 'Just Now'}<br>
+ 📅 Started: ${a.startDate || ''} @ ${a.startTime || 'Just Now'}<br>
  🗺️ Base: ${a.customBase ? '📌 Manually Placed' : '📱 Live GPS (Default)'}<br><br>
  🐟 Catches: ${a.fish.length} | 🎯 Baits: ${a.baits.length} | 🚀 Casts: ${a.casts.length}<br><br>
  <button onclick="startBase()" style="background:#a855f7; color:#fff;">📍 Set Base Position</button>
@@ -196,9 +239,13 @@ function render(){
 
  let h="";
  [...db.sessions].reverse().forEach(s=>{
-   let statusText = s.status === "active" ? "🟢 Active" : `🏁 Ended at ${s.endTime || 'N/A'}`;
-   h+=`<div class="card"><b>${s.name}</b> (${statusText})<br>📍 ${s.spotName}<br><span style="font-size:0.8em; color:#94a3b8;">📅 Started: ${s.startTime || 'N/A'}</span>`;
+   let statusText = s.status === "active" ? "🟢 Active" : `🏁 Ended: ${s.endDate || ''} @ ${s.endTime || 'N/A'}`;
+   let isPreviewing = previewSessionId === s.id;
    
+   h+=`<div class="card" style="${isPreviewing ? 'border-color: #eab308;' : ''}"><b>${s.name}</b> (${statusText})<br>📍 ${s.spotName}<br><span style="font-size:0.8em; color:#94a3b8;">📅 Started: ${s.startDate || 'N/A'} @ ${s.startTime || 'N/A'}</span><br>`;
+   
+   h+=`<button class="preview-btn" onclick="previewSession('${s.id}')">${isPreviewing ? '🛑 Hide Preview' : '👁️ Preview Layout on Map'}</button>`;
+
    if(s.fish && s.fish.length > 0){
       h+=`<div style="margin-top:8px; font-weight:bold;">Fish Caught (${s.fish.length}):</div>`;
       s.fish.forEach(f=>{
@@ -229,7 +276,9 @@ function createSession(){
  const sp=db.spots.find(x=>x.id===spotSelect.value);
  if(!sp) return;
  
- const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+ const dateObj = new Date();
+ const nowTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+ const nowDate = getFormattedDate(dateObj);
 
  db.sessions.push({
    id:crypto.randomUUID(),
@@ -237,7 +286,9 @@ function createSession(){
    spotName:sp.name,
    spotId:sp.id,
    status:"active",
-   startTime: now,
+   startDate: nowDate,
+   startTime: nowTime,
+   endDate: null,
    endTime: null,
    customBase:null,
    fish:[],
@@ -246,6 +297,7 @@ function createSession(){
  });
  document.getElementById("sessionModal").style.display="none";
  sessionName.value = "";
+ previewSessionId = null; 
  persist(); redraw(); render();
 }
 
@@ -287,8 +339,14 @@ function startCast(){
 function openPlace(){
  document.getElementById("placeMode").style.display="block";
  if(!placeMap){
-   placeMap=L.map('placeMap').setView(map.getCenter(),map.getZoom());
-   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(placeMap);
+   const placeStreetTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+   const placeSatTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+   placeMap=L.map('placeMap', { layers: [placeStreetTiles] }).setView(map.getCenter(),map.getZoom());
+   
+   // Add layout selector to placement screen map
+   L.control.layers({ "Regular Layout": placeStreetTiles, "Satellite Layout": placeSatTiles }, null, { position: 'topright' }).addTo(placeMap);
+   
    placeMap.on('move',updateHud);
  } else {
    placeMap.setView(map.getCenter(),map.getZoom());
@@ -371,8 +429,10 @@ function finishPlacement(){
 function endSession(){
  const s=activeSession();
  if(!s) return;
+ const dateObj = new Date();
  s.status="completed";
- s.endTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+ s.endTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+ s.endDate = getFormattedDate(dateObj);
  persist(); redraw(); render();
 }
 
