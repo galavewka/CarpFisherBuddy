@@ -9,7 +9,7 @@
 :root {
     --bg-main: #060913;
     --bg-surface: rgba(15, 23, 42, 0.75);
-    --bg-card: rgba(30, 41, 59, 0.5);
+    --bg-card: rgba(30, 41, 59, 0.7);
     --accent-blue: #38bdf8;
     --accent-green: #34d399;
     --accent-orange: #fb923c;
@@ -17,7 +17,7 @@
     --accent-purple: #c084fc;
     --text-main: #f8fafc;
     --text-muted: #64748b;
-    --border-color: rgba(255, 255, 255, 0.08);
+    --border-color: rgba(255, 255, 255, 0.12);
     --glow-blue: rgba(56, 189, 248, 0.25);
     --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, sans-serif;
 }
@@ -30,8 +30,10 @@ body {
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
     height: 100vh;
+    width: 100vw;
 }
 
+/* Hard-coded absolute sizing to force the map layout to fill the background */
 #map {
     position: absolute;
     top: 0;
@@ -44,20 +46,20 @@ body {
 /* Luxury Glass HUD Header Overlay */
 header {
     position: absolute;
-    top: 16px;
+    top: max(16px, env(safe-area-inset-top));
     left: 16px;
     right: 16px;
     z-index: 1000;
     background: var(--bg-surface);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid var(--border-color);
     padding: 14px 20px;
     border-radius: 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
 header .logo-group {
@@ -101,7 +103,7 @@ header .top-actions {
 button {
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--text-main);
     cursor: pointer;
     font-weight: 700;
@@ -117,8 +119,8 @@ button {
 }
 
 button:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 button:active {
@@ -141,48 +143,56 @@ button.danger {
     border: none;
 }
 
-/* Sliding Kinetic Dashboard Sheet Control Console */
+/* Base structural panel layer covering the lower viewport area */
 .dashboard-sheet {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 1001;
-    background: linear-gradient(to top, var(--bg-surface) 80%, rgba(15, 23, 42, 0.4) 100%);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border-top: 1px solid var(--border-color);
-    border-radius: 28px 28px 0 0;
-    padding: 20px 24px 34px 24px;
-    max-height: 50vh;
-    overflow-y: auto;
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
-    transition: transform 0.5s cubic-bezier(0.32, 0.94, 0.6, 1);
+    background: transparent; 
+    padding: 0 20px 0 20px;
+    height: 50vh;
+    display: flex;
+    flex-direction: column;
     
-    /* CRITICAL TOUCH PASSTHROUGH LOGIC */
+    /* Touch skip allowed on outer baseline container level */
     pointer-events: none; 
 }
 
+/* Minimalist drag handle */
 .dashboard-sheet::before {
     content: '';
     display: block;
-    width: 36px;
+    width: 40px;
     height: 4px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 2px;
-    margin: -8px auto 16px auto;
+    margin: 10px auto 14px auto;
+    flex-shrink: 0;
 }
 
-/* Cards System Architecture */
+/* NATIVE TOUCH-SCROLLABLE CONTAINER WRAPPER FOR PHONES */
+.scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Forces hardware acceleration on iOS/Android */
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    
+    /* Explicitly tells the phone OS that touches here are interactive */
+    pointer-events: auto; 
+}
+
+/* High-Gloss Cards System Architecture */
 .card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 18px;
-    padding: 16px;
-    margin-bottom: 16px;
-    
-    /* RESTORE POINTER FOR EXCLUSIVE ELEMENT TAPPING */
-    pointer-events: auto;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 
 .card h3 {
@@ -194,7 +204,7 @@ button.danger {
     color: var(--text-muted);
 }
 
-/* Metrics Dashboard Grid Grid Layout */
+/* Metrics Dashboard Grid Layout */
 .metrics-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -203,7 +213,7 @@ button.danger {
 }
 
 .metric-box {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.25);
     border: 1px solid var(--border-color);
     padding: 12px;
     border-radius: 14px;
@@ -242,7 +252,7 @@ button.danger {
     position: fixed;
     inset: 0;
     z-index: 50000;
-    background: rgba(3, 5, 11, 0.5);
+    background: rgba(3, 5, 11, 0.4);
     backdrop-filter: blur(0px);
     -webkit-backdrop-filter: blur(0px);
     display: flex;
@@ -456,10 +466,12 @@ input:focus, select:focus {
 <div id="map"></div>
 
 <div class="dashboard-sheet" id="panelDashboard">
-    <div id="active"></div>
-    <div class="card">
-        <h3>System Telemetry Archives</h3>
-        <div id="history"></div>
+    <div class="scroll-container">
+        <div id="active"></div>
+        <div class="card">
+            <h3>System Telemetry Archives</h3>
+            <div id="history"></div>
+        </div>
     </div>
 </div>
 
@@ -628,7 +640,7 @@ function getFormattedDate(d) {
 function render(){
  const a=activeSession();
  document.getElementById("active").innerHTML = a ? `
- <div class="card" style="border-color: rgba(52, 211, 153, 0.3); background: rgba(16, 185, 129, 0.04);">
+ <div class="card" style="border-color: rgba(52, 211, 153, 0.3); background: rgba(16, 185, 129, 0.06);">
  <div style="display:flex; justify-content:space-between; align-items:center;">
    <b style="color:var(--accent-green); font-size:1rem; letter-spacing:0.5px;">LIVE CAPTURE MOD: ${a.name}</b>
    <span style="font-size:0.65rem; background: rgba(52,211,153,0.2); padding:3px 8px; border-radius:6px; color:var(--accent-green); font-weight:900; letter-spacing:1px;">ACTIVE</span>
@@ -651,11 +663,11 @@ function render(){
    <button onclick="startCast()" style="border-color:rgba(248,113,113,0.3); color:var(--accent-red);">🚀 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:12px; font-weight:800; border-radius:14px; padding:12px;">Terminate Logging Array</button>
- </div>` : `<div style="text-align:center; color: var(--text-muted); font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:20px 0;">No Active Stream Detected.</div>`;
+ </div>` : `<div class="card" style="text-align:center; color: var(--text-muted); font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; padding:20px 0;">No Active Stream Detected.</div>`;
 
  let h="";
  [...db.sessions].reverse().forEach(s=>{
-   let statusText = s.status === "active" ? `<span style="color:var(--accent-green); font-weight:800; font-size:0.75rem;">● RUNNING</span>` : `<span style="color:var(--text-muted); font-size:0.75rem;">🏁 ENDED ${s.endDate || ''}</span>`;
+   let statusText = s.status === "active" ? `<span style="color:var(--accent-green); font-weight:800; font-size:0.75rem;">• RUNNING</span>` : `<span style="color:var(--text-muted); font-size:0.75rem;">🏁 ENDED ${s.endDate || ''}</span>`;
    let isPreviewing = previewSessionId === s.id;
    
    h+=`<div class="card" style="${isPreviewing ? 'border-color: var(--accent-orange);' : ''}">
