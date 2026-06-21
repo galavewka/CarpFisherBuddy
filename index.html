@@ -1,90 +1,400 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FishBuddy Rebuild</title>
+<title>FishBuddy Pro</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 <style>
-body{margin:0;font-family:Arial;background:#0f172a;color:#fff}
-header,.toolbar{background:#111827}
-header{padding:12px;text-align:center;font-weight:bold}
-.toolbar{display:flex;gap:8px;padding:8px;flex-wrap:wrap}
-button{padding:10px;border:none;border-radius:8px;background:#22d3ee;color:#000;cursor:pointer;font-weight:bold}
-#map{height:40vh;position:relative;z-index:1}
-.card{background:#111827;border:1px solid #22d3ee;border-radius:10px;margin:10px;padding:10px}
+:root {
+    --bg-main: #0b0f19;
+    --bg-surface: #151c2c;
+    --bg-card: #1e293b;
+    --accent-blue: #00a3e0;
+    --accent-green: #10b981;
+    --accent-orange: #ff6b00;
+    --accent-red: #ef4444;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
 
-/* Leaflet theme adjustments for dark mode layer control */
-.leaflet-control-layers { background: #111827 !important; color: #fff !important; border: 1px solid #22d3ee !important; border-radius: 8px !important; }
-.leaflet-control-layers-toggle { filter: invert(1); }
+body {
+    margin: 0;
+    font-family: var(--font-stack);
+    background: var(--bg-main);
+    color: var(--text-main);
+    -webkit-font-smoothing: antialiased;
+}
 
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);align-items:center;justify-content:center;z-index:20000}
-.box{background:#111827;padding:15px;border-radius:10px;width:90%;max-width:420px;border:1px solid #22d3ee}
-input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;background:#1e293b;color:#fff;border:1px solid #475569;border-radius:6px}
+/* Header & Navigation with Animated Glow */
+header {
+    background: var(--bg-surface);
+    padding: 16px;
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: 2px;
+    font-size: 1.4rem;
+    border-bottom: 2px solid var(--accent-blue);
+    text-transform: uppercase;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    color: #fff;
+    animation: textGlow 3s ease-in-out infinite alternate;
+}
 
-#placeMode{display:none;position:fixed;inset:0;z-index:3000;background:#000}
-#placeMap{height:100vh;width:100vw;position:absolute;top:0;left:0;z-index:1}
-#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:42px;color:#ff00ff;pointer-events:none;z-index:1000;font-weight:bold}
-#hud{position:absolute;top:10px;left:10px;right:10px;background:#111827;padding:10px;z-index:1000;border-radius:8px;border:1px solid #22d3ee;text-align:center}
-#placeBtns{position:absolute;bottom:20px;left:10px;right:10px;display:flex;gap:10px;z-index:1000}
-#placeBtns button {flex:1}
-.fish-badge {background:#1e293b; padding:6px 8px; border-radius:4px; margin:4px 0; display:block; font-size: 0.9em; border: 1px solid #334155;}
-.remove-btn {background:#ef4444; color:white; padding:4px 8px; font-size:11px; margin-top:5px; border-radius:4px; width:100%; text-align:center; border:none; cursor:pointer;}
-.time-tag {font-size:0.75em; color:#94a3b8; display:block; margin-top:2px;}
-.preview-btn {background:#eab308; color:#000; padding:6px 12px; margin-top:8px; border-radius:6px; font-size:0.85em; display:inline-block;}
+@keyframes textGlow {
+    0% {
+        text-shadow: 0 0 4px rgba(0, 163, 224, 0.4), 
+                     0 0 10px rgba(0, 163, 224, 0.2);
+    }
+    100% {
+        text-shadow: 0 0 12px rgba(0, 163, 224, 0.8), 
+                     0 0 22px rgba(0, 230, 255, 0.6),
+                     0 0 4px rgba(255, 255, 255, 0.5);
+        color: #f0fdfa;
+    }
+}
+
+.toolbar {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Tactile & Smooth Buttons */
+button {
+    flex: 1;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent-blue);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background 0.2s ease, transform 0.1s cubic-bezier(0.25, 1, 0.5, 1), filter 0.2s ease, box-shadow 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+button:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+button:active {
+    transform: scale(0.96); /* Subtle physical click effect */
+}
+button.secondary {
+    background: #475569;
+}
+button.danger {
+    background: var(--accent-red);
+}
+button.warning {
+    background: var(--accent-orange);
+    color: #fff;
+}
+
+/* Map Containers */
+#map {
+    height: 45vh;
+    position: relative;
+    z-index: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Cards & Framework styling */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.card h3 {
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+}
+
+/* Telemetry Dashboard Data grids */
+.metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 14px 0;
+}
+.metric-box {
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+}
+.metric-val {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--accent-blue);
+}
+.metric-lbl {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+/* Leaflet theme overrides */
+.leaflet-control-layers {
+    background: var(--bg-surface) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    font-family: var(--font-stack) !important;
+    font-weight: bold;
+}
+.leaflet-control-layers-toggle { filter: invert(0.9) hue-rotate(180deg); }
+
+/* Animated Modals */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 6, 10, 0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.25s ease;
+}
+
+/* Modal Content Entry Animation */
+.modal.open {
+    display: flex;
+    animation: fadeInBg 0.2s ease forwards;
+}
+.modal.open .box {
+    animation: modalFadeIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes fadeInBg {
+    from { background: rgba(4, 6, 10, 0); backdrop-filter: blur(0px); }
+    to { background: rgba(4, 6, 10, 0.85); backdrop-filter: blur(4px); }
+}
+
+@keyframes modalFadeIn {
+    from { transform: scale(0.9) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.box {
+    background: var(--bg-surface);
+    padding: 24px;
+    border-radius: 14px;
+    width: 90%;
+    max-width: 400px;
+    border: 1px solid var(--accent-blue);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.box h3 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-main);
+    margin-bottom: 16px;
+}
+
+input, select {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0 16px 0;
+    box-sizing: border-box;
+    background: var(--bg-main);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease;
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* Custom Overlays (Targeting HUD) with Animation */
+#placeMode {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    background: var(--bg-main);
+}
+#placeMode.open {
+    display: block;
+    animation: fadeInBg 0.2s ease forwards;
+}
+#placeMap { height: 100vh; width: 100vw; position: absolute; top: 0; left: 0; z-index: 1; }
+#cross {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    color: var(--accent-orange);
+    pointer-events: none;
+    z-index: 1000;
+    font-weight: 300;
+    text-shadow: 0 0 4px rgba(0,0,0,0.8);
+}
+#hud {
+    position: absolute;
+    top: 14px; left: 14px; right: 14px;
+    background: rgba(21, 28, 44, 0.9);
+    padding: 12px;
+    z-index: 1000;
+    border-radius: 8px;
+    border: 1px solid var(--accent-blue);
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(4px);
+    animation: modalFadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+#placeBtns {
+    position: absolute;
+    bottom: 24px; left: 14px; right: 14px;
+    display: flex; gap: 12px; z-index: 1000;
+    animation: modalFadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+/* Logged lists items */
+.fish-badge {
+    background: var(--bg-main);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    display: block;
+    font-size: 0.9rem;
+    border-left: 3px solid var(--accent-blue);
+}
+.remove-btn {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--accent-red);
+    padding: 6px;
+    font-size: 0.75rem;
+    margin-top: 8px;
+    border-radius: 4px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+}
+.remove-btn:hover { background: var(--accent-red); color: #fff; }
+.remove-btn:active { transform: scale(0.98); }
+.time-tag { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px; }
+.preview-btn {
+    background: transparent;
+    color: var(--accent-blue);
+    border: 1px solid var(--accent-blue);
+    padding: 8px 12px;
+    margin-top: 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    width: auto;
+    transition: all 0.2s ease;
+}
+.preview-btn.active {
+    background: var(--accent-orange);
+    color: #fff;
+    border-color: var(--accent-orange);
+}
+.preview-btn:active { transform: scale(0.97); }
 </style>
 </head>
 <body>
-<header>🎣 FishBuddy</header>
+
+<header>CarpFisher IQ</header>
 
 <div class="toolbar">
-<button onclick="beginSpot()">📍 Add Spot</button>
-<button onclick="openSession()">🎣 New Session</button>
+    <button onclick="beginSpot()">📍 Add Swim</button>
+    <button onclick="openSession()" style="background: var(--accent-green);">🎣 New Session</button>
 </div>
 
 <div id="map"></div>
-
 <div id="active"></div>
 
 <div class="card">
-<h3>Session History</h3>
-<div id="history"></div>
+    <h3>Data Log & Session History</h3>
+    <div id="history"></div>
 </div>
 
 <div class="modal" id="sessionModal"><div class="box">
-<h3>New Session</h3>
-<input id="sessionName" placeholder="Session Name">
-<select id="spotSelect"></select>
-<button onclick="createSession()">Start Session</button>
-<button onclick="document.getElementById('sessionModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+    <h3>Initialize New Session</h3>
+    <input id="sessionName" placeholder="Session Identifier Name">
+    <select id="spotSelect"></select>
+    <button onclick="createSession()" style="background: var(--accent-green);">Start Session</button>
+    <button class="secondary" onclick="closeModal('sessionModal')" style="margin-top:8px;">Abort</button>
 </div></div>
 
 <div class="modal" id="fishModal"><div class="box">
-<h3>Add Fish</h3>
-<input id="species" placeholder="Species">
-<input id="weight" placeholder="Weight kg">
-<input id="length" placeholder="Length cm">
-<input id="bait" placeholder="Bait">
-<button onclick="saveFish()">Save Fish</button>
-<button onclick="document.getElementById('fishModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+    <h3>Log Specimen Catch</h3>
+    <input id="species" placeholder="Fish Species">
+    <input id="weight" placeholder="Weight (kg)">
+    <input id="length" placeholder="Length (cm)">
+    <input id="bait" placeholder="Rig / Bait details">
+    <button onclick="saveFish()">Record Entry</button>
+    <button class="secondary" onclick="closeModal('fishModal')" style="margin-top:8px;">Cancel</button>
 </div></div>
 
 <div class="modal" id="textModal"><div class="box">
-<h3 id="textTitle"></h3>
-<input id="textInput">
-<button onclick="finishPlacement()">Save</button>
-<button onclick="document.getElementById('textModal').style.display='none'" style="background:#64748b; color:#fff; margin-top:5px;">Cancel</button>
+    <h3 id="textTitle">Metadata Prompt</h3>
+    <input id="textInput">
+    <button onclick="finishPlacement()">Save Coordinates</button>
+    <button class="secondary" onclick="closeModal('textModal')" style="margin-top:8px;">Cancel</button>
+</div></div>
+
+<div class="modal" id="confirmEndModal"><div class="box" style="border-color: var(--accent-red);">
+    <h3 style="color: var(--text-main);">Finish Session?</h3>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;">
+        Are you sure you want to shut down telemetry logs and archive this active angling session?
+    </p>
+    <div style="display: flex; gap: 12px;">
+        <button class="secondary" onclick="closeModal('confirmEndModal')">NO</button>
+        <button style="background: var(--accent-red);" onclick="confirmEndSession()">YES</button>
+    </div>
 </div></div>
 
 <div id="placeMode">
-<div id="placeMap"></div>
-<div id="cross">+</div>
-<div id="hud"><span id="hudText">Move map</span></div>
-<div id="placeBtns">
-<button onclick="cancelPlace()" style="background:#ef4444; color:white;">Cancel</button>
-<button onclick="acceptPlace()" style="background:#22c55e; color:black;">Select Location</button>
-</div>
+    <div id="placeMap"></div>
+    <div id="cross">⊹</div>
+    <div id="hud"><span id="hudText">Calibrating Positioning Radar...</span></div>
+    <div id="placeBtns">
+        <button class="danger" onclick="cancelPlace()">Cancel</button>
+        <button onclick="acceptPlace()" style="background: var(--accent-green); color:#000;">Confirm Location</button>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -92,34 +402,41 @@ input,select{width:100%;padding:10px;margin:6px 0;box-sizing:border-box;backgrou
 let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
 const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
 
-// Layer Configuration Definitions
 const streetTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
 const satTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
   maxZoom: 19,
-  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+  attribution: 'Tiles &copy; Esri &mdash; Community Source'
 });
 
 const map=L.map('map', { layers: [streetTiles] }).setView([50.45,30.52],12);
-
-// Add Layout selector to main map
-L.control.layers({ "Regular Layout": streetTiles, "Satellite Layout": satTiles }, null, { position: 'topright' }).addTo(map);
+L.control.layers({ "Vector Charts": streetTiles, "Satellite Imagery": satTiles }, null, { position: 'topright' }).addTo(map);
 
 let me=null, placeMap=null, myPos=null, previewSessionId=null;
 navigator.geolocation.watchPosition(p=>{
  myPos=[p.coords.latitude,p.coords.longitude];
- const icon=L.divIcon({html:"🙂",className:""});
+ const icon=L.divIcon({html:"🔷",className:""});
  
  if(!me){ me=L.marker(myPos,{icon}).addTo(map); map.setView(myPos,15); }
  else me.setLatLng(myPos);
 
  redraw();
-}, err=>console.log("Location access unavailable."));
+}, err=>console.log("GPS Array unavailable."));
 
 function activeSession(){ return db.sessions.find(x=>x.status==="active"); }
-
 function getCalculatedAnchor(sess) {
    if (sess && sess.customBase) return [sess.customBase.lat, sess.customBase.lng];
    return myPos;
+}
+
+// Global Modal Helpers to cleanly handle open/close animations
+function showModal(id) {
+    const target = document.getElementById(id);
+    target.classList.add('open');
+}
+
+function closeModal(id) {
+    const target = document.getElementById(id);
+    target.classList.remove('open');
 }
 
 let layers=[];
@@ -147,41 +464,34 @@ function redraw(){
  };
 
  db.spots.forEach(s=>{
-   drawToBoth(L.marker([s.lat,s.lng]).bindPopup("📍 "+s.name));
+    drawToBoth(L.marker([s.lat,s.lng]).bindPopup("📍 "+s.name));
  });
 
  db.sessions.forEach(sess=>{
-   if(sess.status !== "active" && sess.id !== previewSessionId) return;
+    if(sess.status !== "active" && sess.id !== previewSessionId) return;
+    const anchor = getCalculatedAnchor(sess);
 
-   const anchor = getCalculatedAnchor(sess);
-
-   if(sess.customBase){
-      drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓ Manual Base Position ("+sess.name+")"));
-   }
-   sess.baits.forEach((b, index)=>{
-      let baitMarker = L.circleMarker([b.lat,b.lng],{color:"yellow", radius:6});
-      let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">❌ Remove</button></div>`;
-      baitMarker.bindPopup(popupContent);
-      drawToBoth(baitMarker);
-
-      if(anchor) {
-         drawToBoth(L.polyline([anchor, [b.lat, b.lng]], {color:"#eab308", dashArray:"8,8", weight: 2}));
-      }
-   });
-   sess.casts.forEach((c, index)=>{
-      let castMarker = L.circleMarker([c.lat,c.lng],{color:"#ef4444", fillColor:"#ef4444", fillOpacity: 0.8, radius:5});
-      let popupContent = `<div>🚀 ${c.desc}<br>${c.distance}m from base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">❌ Remove</button></div>`;
-      castMarker.bindPopup(popupContent);
-      drawToBoth(castMarker);
-
-      if(anchor) {
-         drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2}));
-      }
-   });
+    if(sess.customBase){
+       drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓ Manual Base Anchor point"));
+    }
+    sess.baits.forEach((b, index)=>{
+       let baitMarker = L.circleMarker([b.lat,b.lng],{color:"#ff00ff", radius:6});
+       let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from system base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">Purge Object</button></div>`;
+       baitMarker.bindPopup(popupContent);
+       drawToBoth(baitMarker);
+       if(anchor) drawToBoth(L.polyline([anchor, [b.lat, b.lng]], {color:"#ff00ff", dashArray:"6,6", weight: 2}));
+    });
+    sess.casts.forEach((c, index)=>{
+       let castMarker = L.circleMarker([c.lat,c.lng],{color:"#ef4444", fillColor:"#ef4444", fillOpacity: 0.8, radius:5});
+       let popupContent = `<div>🚀 ${c.desc}<br>${c.distance}m from system base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">Purge Object</button></div>`;
+       castMarker.bindPopup(popupContent);
+       drawToBoth(castMarker);
+       if(anchor) drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2}));
+    });
  });
 
  if(myPos && placeMap) {
-    const iconPlace=L.divIcon({html:"🙂",className:""});
+    const iconPlace=L.divIcon({html:"🔷",className:""});
     placeLayers.push(L.marker(myPos,{icon: iconPlace}).addTo(placeMap));
  }
 }
@@ -195,16 +505,14 @@ function removeItem(type, sessionId, index) {
 }
 
 function previewSession(sessionId) {
-  if(previewSessionId === sessionId) {
-     previewSessionId = null;
-  } else {
+  if(previewSessionId === sessionId) { previewSessionId = null; } 
+  else {
      previewSessionId = sessionId;
      const sess = db.sessions.find(x => x.id === sessionId);
      if(sess) {
         let targetLatLng = null;
-        if(sess.customBase) {
-           targetLatLng = [sess.customBase.lat, sess.customBase.lng];
-        } else {
+        if(sess.customBase) targetLatLng = [sess.customBase.lat, sess.customBase.lng];
+        else {
            const spotObj = db.spots.find(x => x.id === sess.spotId);
            if(spotObj) targetLatLng = [spotObj.lat, spotObj.lng];
         }
@@ -215,47 +523,57 @@ function previewSession(sessionId) {
 }
 
 function getFormattedDate(d) {
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
 function render(){
  const a=activeSession();
  document.getElementById("active").innerHTML = a ? `
- <div class="card" style="border-color: #22c55e;">
- <b>🟢 Active Session: ${a.name}</b><br>
- 📍 Spot: ${a.spotName}<br>
- 📅 Started: ${a.startDate || ''} @ ${a.startTime || 'Just Now'}<br>
- 🗺️ Base: ${a.customBase ? '📌 Manually Placed' : '📱 Live GPS (Default)'}<br><br>
- 🐟 Catches: ${a.fish.length} | 🎯 Baits: ${a.baits.length} | 🚀 Casts: ${a.casts.length}<br><br>
- <button onclick="startBase()" style="background:#a855f7; color:#fff;">📍 Set Base Position</button>
- <button onclick="openFish()">🐟 Add Fish</button>
- <button onclick="startBait()">🎯 Add Bait</button>
- <button onclick="startCast()">🚀 Add Cast</button>
- <button onclick="endSession()" style="background:#ef4444; color:#fff;">End Session</button>
- </div>` : `<div class="card">No active session running</div>`;
+ <div class="card" style="border-color: var(--accent-green);">
+ <div style="display:flex; justify-content:space-between; align-items:center;">
+   <b style="color:var(--accent-green);">ACTIVE SESSION RUNNING: ${a.name}</b>
+   <span style="font-size:0.75rem; background: rgba(16,185,129,0.15); padding:3px 8px; border-radius:4px; color:var(--accent-green); font-weight:bold;">LIVE</span>
+ </div>
+ <div style="margin-top:8px; font-size:0.9rem; color:var(--text-muted);">
+   📍 Swim: <b>${a.spotName}</b> | 📅 Init: ${a.startDate || ''} @ ${a.startTime || 'N/A'}<br>
+   🗺️ Telemetry Mode: ${a.customBase ? '⚓ Static Reference Point' : '📱 dynamic Cellular GPS'}
+ </div>
+ 
+ <div class="metrics-row">
+    <div class="metric-box"><div class="metric-val">${a.fish.length}</div><div class="metric-lbl">Catches</div></div>
+    <div class="metric-box"><div class="metric-val">${a.baits.length}</div><div class="metric-lbl">Baits Placed</div></div>
+    <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Logged</div></div>
+ </div>
+
+ <div class="action-grid">
+   <button onclick="startBase()">⚓ Set Base</button>
+   <button onclick="openFish()" style="background:var(--accent-blue);">🐟 Log Fish</button>
+   <button onclick="startBait()" style="background:var(--accent-orange);">🎯 Add Bait</button>
+   <button onclick="startCast()" style="background:var(--accent-red);">🚀 Add Cast</button>
+ </div>
+ <button class="danger" onclick="endSession()" style="width:100%; margin-top:10px; font-weight:800;">Finish Session</button>
+ </div>` : `<div class="card" style="text-align:center; color: var(--text-muted);">No Active Sessions Started.</div>`;
 
  let h="";
  [...db.sessions].reverse().forEach(s=>{
-   let statusText = s.status === "active" ? "🟢 Active" : `🏁 Ended: ${s.endDate || ''} @ ${s.endTime || 'N/A'}`;
+   let statusText = s.status === "active" ? `<span style="color:var(--accent-green)">● ONLINE</span>` : `🏁 ARCHIVED: ${s.endDate || ''}`;
    let isPreviewing = previewSessionId === s.id;
    
-   h+=`<div class="card" style="${isPreviewing ? 'border-color: #eab308;' : ''}"><b>${s.name}</b> (${statusText})<br>📍 ${s.spotName}<br><span style="font-size:0.8em; color:#94a3b8;">📅 Started: ${s.startDate || 'N/A'} @ ${s.startTime || 'N/A'}</span><br>`;
+   h+=`<div class="card" style="${isPreviewing ? 'border-color: var(--accent-orange);' : ''}">
+   <div style="display:flex; justify-content:space-between; font-size:0.95rem;"><b>${s.name}</b> <span>${statusText}</span></div>
+   <div style="font-size:0.85rem; color:var(--text-muted); margin-top:4px;">Target Area: ${s.spotName} | Started: ${s.startDate || 'N/A'}</div>`;
    
-   h+=`<button class="preview-btn" onclick="previewSession('${s.id}')">${isPreviewing ? '🛑 Hide Preview' : '👁️ Preview Layout on Map'}</button>`;
+   h+=`<button class="preview-btn ${isPreviewing?'active':''}" onclick="previewSession('${s.id}')">${isPreviewing ? '🔒 Hide Session' : '👁️ Preview Session'}</button>`;
 
    if(s.fish && s.fish.length > 0){
-      h+=`<div style="margin-top:8px; font-weight:bold;">Fish Caught (${s.fish.length}):</div>`;
+      h+=`<div style="margin-top:12px; font-size:0.8rem; font-weight:bold; text-transform:uppercase; color:var(--text-muted)">Validated Catch Logs (${s.fish.length}):</div>`;
       s.fish.forEach(f=>{
-         h+=`<div class="fish-badge">
-               🐟 <b>${f.species}</b> — ⚖️ ${f.weight}kg | 📏 ${f.length}cm (Bait: ${f.bait||'None'})
-               <span class="time-tag">⏱️ Caught at: ${f.time || 'N/A'}</span>
-             </div>`;
+          h+=`<div class="fish-badge">
+                🐟 <b>${f.species}</b> — ⚖️ ${f.weight}kg | 📏 ${f.length}cm<br>
+                <span style="font-size:0.8rem; color:var(--accent-blue);">Tactical Bait: ${f.bait||'Unspecified'}</span>
+                <span class="time-tag">⏱️ Timestamp: ${f.time || 'N/A'}</span>
+              </div>`;
       });
-   } else {
-      h+=`<div style="margin-top:8px; color:#64748b; font-size:0.9em;">No fish logged this session.</div>`;
    }
    h+="</div>";
  });
@@ -263,11 +581,11 @@ function render(){
 }
 
 function openSession(){
- if(!db.spots.length) return alert("Please create a spot location first!");
+ if(!db.spots.length) return alert("System requires at least one configured Spot location database before deployment.");
  const spotSelect = document.getElementById("spotSelect");
  spotSelect.innerHTML="";
  db.spots.forEach(s=>spotSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
- document.getElementById("sessionModal").style.display="flex";
+ showModal("sessionModal");
 }
 
 function createSession(){
@@ -282,7 +600,7 @@ function createSession(){
 
  db.sessions.push({
    id:crypto.randomUUID(),
-   name:sessionName.value||"Session "+(db.sessions.length+1),
+   name:sessionName.value||"TACTICAL-SESS-"+(db.sessions.length+1),
    spotName:sp.name,
    spotId:sp.id,
    status:"active",
@@ -295,13 +613,13 @@ function createSession(){
    baits:[],
    casts:[]
  });
- document.getElementById("sessionModal").style.display="none";
+ closeModal("sessionModal");
  sessionName.value = "";
  previewSessionId = null; 
  persist(); redraw(); render();
 }
 
-function openFish(){ document.getElementById("fishModal").style.display="flex"; }
+function openFish(){ showModal("fishModal"); }
 function saveFish(){
  const s=activeSession();
  if(!s) return;
@@ -312,71 +630,75 @@ function saveFish(){
  const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
  s.fish.push({
-   species:species.value||"Unknown Fish",
+   species:species.value||"Unidentified Organism",
    weight:weight.value||"0",
    length:length.value||"0",
    bait:bait.value||"None",
    time: now
  });
- document.getElementById("fishModal").style.display="none";
+ closeModal("fishModal");
  species.value=weight.value=length.value=bait.value="";
  persist(); redraw(); render();
 }
 
 let mode=null, distance=0;
-
 function beginSpot(){ mode="spot"; openPlace(); }
 function startBase(){ mode="base"; openPlace(); }
-function startBait(){
- const s=activeSession(); if(!s) return;
- mode="bait"; openPlace();
+
+function checkAndLockAutoBase(session) {
+    if (!session.customBase && myPos) {
+        session.customBase = { lat: myPos[0], lng: myPos[1] };
+    }
 }
-function startCast(){
- const s=activeSession(); if(!s) return;
- mode="cast"; openPlace();
+
+function startBait(){ 
+    const s=activeSession(); 
+    if(!s) return; 
+    checkAndLockAutoBase(s);
+    mode="bait"; 
+    openPlace(); 
+}
+
+function startCast(){ 
+    const s=activeSession(); 
+    if(!s) return; 
+    checkAndLockAutoBase(s);
+    mode="cast"; 
+    openPlace(); 
 }
 
 function openPlace(){
- document.getElementById("placeMode").style.display="block";
+ document.getElementById("placeMode").classList.add("open");
  if(!placeMap){
    const placeStreetTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
    const placeSatTiles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
-
    placeMap=L.map('placeMap', { layers: [placeStreetTiles] }).setView(map.getCenter(),map.getZoom());
-   
-   // Add layout selector to placement screen map
-   L.control.layers({ "Regular Layout": placeStreetTiles, "Satellite Layout": placeSatTiles }, null, { position: 'topright' }).addTo(placeMap);
-   
+   L.control.layers({ "Vector Charts": placeStreetTiles, "Satellite Imagery": placeSatTiles }, null, { position: 'topright' }).addTo(placeMap);
    placeMap.on('move',updateHud);
  } else {
    placeMap.setView(map.getCenter(),map.getZoom());
  }
- setTimeout(()=>{
-   placeMap.invalidateSize();
-   redraw();
- },150);
+ setTimeout(()=>{ placeMap.invalidateSize(); redraw(); },150);
 }
 
 function updateHud(){
  const hudText = document.getElementById("hudText");
- if(mode==="spot") hudText.innerText="Center crosshair over map location to save spot";
- else if(mode==="base") hudText.innerText="Center crosshair to set a custom baseline anchor point";
+ if(mode==="spot") hudText.innerText="Align crosshair over desired coordinates to log geographical spot";
+ else if(mode==="base") hudText.innerText="Align crosshair to set alternative static array baseline anchor";
  else{
    const c=placeMap.getCenter();
    const anchor = getCalculatedAnchor(activeSession());
    if (anchor) {
       distance=Math.round(placeMap.distance(anchor,[c.lat,c.lng]));
-      hudText.innerText = (activeSession()?.customBase ? "Distance from Manual Base: " : "Distance from GPS: ") + distance + "m";
+      hudText.innerText = (activeSession()?.customBase ? "Range Matrix from Anchor: " : "Range Matrix from Mobile Unit: ") + distance + "m";
    } else {
       distance = 0;
-      hudText.innerText="Waiting for base coordinates...";
+      hudText.innerText="Calculating telemetry coordinates...";
    }
  }
 }
 
-function cancelPlace(){ 
-  document.getElementById("placeMode").style.display="none"; 
-}
+function cancelPlace(){ document.getElementById("placeMode").classList.remove("open"); }
 
 function acceptPlace() {
  const textTitle = document.getElementById("textTitle");
@@ -384,22 +706,20 @@ function acceptPlace() {
  const c=placeMap.getCenter();
 
  if(mode==="spot"){
-   textTitle.innerText="Enter Spot Name";
-   textInput.value="";
-   document.getElementById("textModal").style.display="flex";
-   return;
+    textTitle.innerText="Swim Description";
+    textInput.value="";
+    showModal("textModal");
+    return;
  }
-
  if(mode==="base"){
-   const s = activeSession();
-   if(s) s.customBase={lat:c.lat,lng:c.lng};
-   persist(); redraw(); render(); cancelPlace();
-   return;
+    const s = activeSession();
+    if(s) s.customBase={lat:c.lat,lng:c.lng};
+    persist(); redraw(); render(); cancelPlace();
+    return;
  }
-
- textTitle.innerText = mode==="bait" ? "Enter Bait Description" : "Enter Cast Description";
+ textTitle.innerText = mode==="bait" ? "Bait Configuration Payload" : "Cast Flight Path Description";
  textInput.value="";
- document.getElementById("textModal").style.display="flex";
+ showModal("textModal");
 }
 
 function finishPlacement(){
@@ -408,31 +728,39 @@ function finishPlacement(){
  const textInput = document.getElementById("textInput");
 
  if(mode==="spot"){
-   db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Spot",lat:c.lat,lng:c.lng});
-   persist(); redraw();
+    db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Field Location",lat:c.lat,lng:c.lng});
+    persist(); redraw();
  }
-
  if(mode==="bait" && s){
-   s.baits.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Bait Spot"});
-   persist(); redraw(); render();
+    s.baits.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Bait Target Node"});
+    persist(); redraw(); render();
  }
-
  if(mode==="cast" && s){
-   s.casts.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Cast"});
-   persist(); redraw(); render();
+    s.casts.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Strike Vector Cast"});
+    persist(); redraw(); render();
  }
-
- document.getElementById("textModal").style.display="none";
+ closeModal("textModal");
  cancelPlace();
 }
 
+// Opens the customized animated confirmation prompt layout
 function endSession(){
  const s=activeSession();
  if(!s) return;
+ showModal("confirmEndModal");
+}
+
+// Executes closure when user ticks the custom "YES" choice
+function confirmEndSession() {
+ const s=activeSession();
+ if(!s) return;
+ 
  const dateObj = new Date();
  s.status="completed";
  s.endTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
  s.endDate = getFormattedDate(dateObj);
+ 
+ closeModal("confirmEndModal");
  persist(); redraw(); render();
 }
 
