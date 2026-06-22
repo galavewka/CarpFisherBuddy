@@ -175,7 +175,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 #placeMode.open { display: block; }
 #placeMap { height: 100vh; width: 100vw; position: absolute; inset: 0; z-index: 1; }
 
-/* Refined Slim Saturated Crimson Target Overlay Reticle */
 #cross {
     position: absolute;
     left: 50%; top: 50%;
@@ -315,6 +314,9 @@ let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 let sensorsHooked = false;
 
+let lastHeading = null;
+const SMOOTHING_FACTOR = 0.25; 
+
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
     sensorsHooked = true;
@@ -334,9 +336,24 @@ function triggerSensorUnlock() {
 
 function handleCompass(e) {
     let heading = e.alpha;
-    if (e.webkitCompassHeading) heading = e.webkitCompassHeading;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+        heading = e.webkitCompassHeading; 
+    } else if (e.absolute && e.alpha !== null) {
+        heading = 360 - e.alpha; 
+    }
+    
     if (heading !== null && heading !== undefined) {
-        myHeading = heading;
+        if (lastHeading === null) {
+            lastHeading = heading;
+        } else {
+            let diff = heading - lastHeading;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            heading = lastHeading + diff * SMOOTHING_FACTOR;
+        }
+        
+        myHeading = (heading + 360) % 360;
+        lastHeading = myHeading;
         updateAzimuthVectors();
     }
 }
@@ -352,20 +369,20 @@ navigator.geolocation.watchPosition(p=>{
  
  if(!me){ 
      me = L.marker(myPos,{icon}).addTo(map); 
-     map.setView(myPos,15); 
+     map.setView(myPos,16); 
  } else {
      me.setLatLng(myPos);
  }
 
  updateAzimuthVectors();
  redraw();
-}, err=>console.log("GPS Array offline or waiting for HTTPS authorization."), {
+}, err=>console.log("GPS Telemetry initialization error."), {
     enableHighAccuracy: true,
     maximumAge: 0,
     timeout: 10000
 });
 
-function calculateEndpoint(lat, lng, heading, distanceMeters = 300) {
+function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
     const R = 6378137;
     const d = distanceMeters;
     const brng = (heading * Math.PI) / 180;
@@ -612,7 +629,7 @@ function saveFish(){
  persist(); redraw(); render();
 }
 
-let mode=null, distance=0;
+let mode=null, distance=0, targetCoords=null;
 function beginSpot(){ mode="spot"; openPlace(); }
 function startBase(){ mode="base"; openPlace(); }
 
@@ -650,7 +667,11 @@ function openPlace() {
    placeMap.setView(map.getCenter(),map.getZoom());
  }
  updateAzimuthVectors();
- setTimeout(()=>{ placeMap.invalidateSize(); updateHud(); },200);
+ setTimeout(()=>{ 
+   placeMap.invalidateSize(); 
+   placeMap.setView(map.getCenter(), map.getZoom(), {animate: false});
+   updateHud(); 
+ },250);
 }
 
 function updateHud(){
@@ -673,9 +694,9 @@ function updateHud(){
 function cancelPlace(){ document.getElementById("placeMode").classList.remove("open"); }
 
 function acceptPlace() {
+ targetCoords = placeMap.getCenter(); 
  const textTitle = document.getElementById("textTitle");
  const textInput = document.getElementById("textInput");
- const c=placeMap.getCenter();
 
  cancelPlace();
 
@@ -687,7 +708,7 @@ function acceptPlace() {
  }
  if(mode==="base"){
     const s = activeSession();
-    if(s) s.customBase={lat:c.lat,lng:c.lng};
+    if(s) s.customBase={lat:targetCoords.lat,lng:targetCoords.lng};
     persist(); redraw(); render();
     return;
  }
@@ -696,24 +717,25 @@ function acceptPlace() {
  showModal("textModal");
 }
 
-function finishPlacement(){
- const c=placeMap.getCenter();
+function finishPlacement() {
+ if (!targetCoords) return;
  const s=activeSession();
  const textInput = document.getElementById("textInput");
 
  if(mode==="spot"){
-    db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Swim",lat:c.lat,lng:c.lng});
+    db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Swim",lat:targetCoords.lat,lng:targetCoords.lng});
     persist(); redraw();
  }
  if(mode==="bait" && s){
-    s.baits.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Bait Node"});
+    s.baits.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Bait Node"});
     persist(); redraw(); render();
  }
  if(mode==="cast" && s){
-    s.casts.push({lat:c.lat,lng:c.lng,distance:distance,desc:textInput.value||"Strike Vector"});
+    s.casts.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Strike Vector"});
     persist(); redraw(); render();
  }
  closeModal("textModal");
+ targetCoords = null;
 }
 
 function endSession(){
@@ -739,4 +761,3 @@ redraw(); render();
 </script>
 </body>
 </html>
-
