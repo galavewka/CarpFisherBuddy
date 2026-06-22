@@ -221,8 +221,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 <div class="toolbar glass-panel">
     <div class="tool-row">
-        <button onclick="beginSpot()">📍 Add Swim</button>
-        <button onclick="openSession()" class="success">🎣 New Session</button>
+        <button onclick="triggerSensorUnlock(); beginSpot()">📍 Add Swim</button>
+        <button onclick="triggerSensorUnlock(); openSession()" class="success">🎣 New Session</button>
     </div>
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
@@ -291,7 +291,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
 const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
 
-// Tile generator helper to prevent object sharing/bleeding between maps
 function createTileLayer(key) {
     if (key === 'topo') return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
     if (key === 'sat') return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
@@ -314,16 +313,32 @@ function switchBaseLayer(key) {
 
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
+let sensorsHooked = false;
 
-if (window.DeviceOrientationEvent) {
-    window.addEventListener('deviceorientationabsolute', (e) => {
-        let heading = e.alpha;
-        if (e.webkitCompassHeading) heading = e.webkitCompassHeading;
-        if (heading !== null && heading !== undefined) {
-            myHeading = heading;
-            updateAzimuthVectors();
-        }
-    }, true);
+function triggerSensorUnlock() {
+    if (sensorsHooked) return;
+    sensorsHooked = true;
+
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(res => {
+                if (res === 'granted') {
+                    window.addEventListener('deviceorientationabsolute', handleCompass, true);
+                }
+            }).catch(console.error);
+    } else {
+        window.addEventListener('deviceorientationabsolute', handleCompass, true);
+        window.addEventListener('deviceorientation', handleCompass, true);
+    }
+}
+
+function handleCompass(e) {
+    let heading = e.alpha;
+    if (e.webkitCompassHeading) heading = e.webkitCompassHeading;
+    if (heading !== null && heading !== undefined) {
+        myHeading = heading;
+        updateAzimuthVectors();
+    }
 }
 
 navigator.geolocation.watchPosition(p=>{
@@ -344,7 +359,11 @@ navigator.geolocation.watchPosition(p=>{
 
  updateAzimuthVectors();
  redraw();
-}, err=>console.log("GPS Array unavailable."));
+}, err=>console.log("GPS Array offline or waiting for HTTPS authorization."), {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
+});
 
 function calculateEndpoint(lat, lng, heading, distanceMeters = 300) {
     const R = 6378137;
@@ -499,10 +518,10 @@ function render(){
     <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
  </div>
  <div class="action-grid">
-   <button onclick="startBase()">⚓ Anchor</button>
+   <button onclick="triggerSensorUnlock(); startBase()">⚓ Anchor</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
-   <button onclick="startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
+   <button onclick="triggerSensorUnlock(); startBait()" class="warning">🎯 Add Bait</button>
+   <button onclick="triggerSensorUnlock(); startCast()" class="danger">🚀 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
@@ -720,4 +739,4 @@ redraw(); render();
 </script>
 </body>
 </html>
-//
+
