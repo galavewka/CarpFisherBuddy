@@ -416,9 +416,10 @@ let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=nul
 let sensorsHooked = false;
 
 let lastHeading = null;
-const SMOOTHING_FACTOR = 0.25; 
+const HEADING_SMOOTHING = 0.12;   // Aggressive smoothing for azimuth vector transitions
+const HEADING_DEADZONE = 1.5;     // Angular delta filter in degrees (kills micro-jitter)
+const POSITION_SMOOTHING = 0.20;  // Position dampening factor
 
-// Auto-initialize orientation tracking right away
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
     sensorsHooked = true;
@@ -436,7 +437,6 @@ function triggerSensorUnlock() {
     }
 }
 
-// Hook sensor tracking directly on script execution and fallback to screen interactions
 triggerSensorUnlock();
 window.addEventListener('click', triggerSensorUnlock, { once: true });
 window.addEventListener('touchstart', triggerSensorUnlock, { once: true });
@@ -454,9 +454,17 @@ function handleCompass(e) {
             lastHeading = heading;
         } else {
             let diff = heading - lastHeading;
+            
+            // Normalize angular differences across the 0/360 boundary split
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
-            heading = lastHeading + diff * SMOOTHING_FACTOR;
+            
+            // Angular Delta Filter: If the deviation is minuscule noise, reject update
+            if (Math.abs(diff) < HEADING_DEADZONE) {
+                return;
+            }
+            
+            heading = lastHeading + diff * HEADING_SMOOTHING;
         }
         
         myHeading = (heading + 360) % 360;
@@ -466,26 +474,48 @@ function handleCompass(e) {
 }
 
 navigator.geolocation.watchPosition(p=>{
- myPos=[p.coords.latitude,p.coords.longitude];
- if(p.coords.heading !== null && !isNaN(p.coords.heading)) {
-     myHeading = p.coords.heading;
+ if (p.coords.accuracy && p.coords.accuracy > 35) {
+     return; 
+ }
+
+ const newLat = p.coords.latitude;
+ const newLng = p.coords.longitude;
+
+ // If walking/driving and valid hardware heading exists, capture it using identical EMA damping rules
+ if (p.coords.heading !== null && !isNaN(p.coords.heading) && p.coords.speed > 0.5) {
+     let gpsHeading = p.coords.heading;
+     if (lastHeading !== null) {
+         let diff = gpsHeading - lastHeading;
+         if (diff > 180) diff -= 360;
+         if (diff < -180) diff += 360;
+         if (Math.abs(diff) >= HEADING_DEADZONE) {
+             myHeading = (lastHeading + diff * HEADING_SMOOTHING + 360) % 360;
+             lastHeading = myHeading;
+         }
+     } else {
+         myHeading = gpsHeading;
+         lastHeading = gpsHeading;
+     }
  }
  
  const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
  const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
  
- if(!me){ 
+ if(!myPos){ 
+     myPos = [newLat, newLng];
      me = L.marker(myPos,{icon}).addTo(map); 
      map.setView(myPos,16); 
  } else {
+     const smoothedLat = myPos[0] + (newLat - myPos[0]) * POSITION_SMOOTHING;
+     const smoothedLng = myPos[1] + (newLng - myPos[1]) * POSITION_SMOOTHING;
+     myPos = [smoothedLat, smoothedLng];
      me.setLatLng(myPos);
  }
 
  updateAzimuthVectors();
  redraw();
 }, err=> {
-    console.log("GPS updating suspended or bad tracking. Sensor arrays maintaining positioning vectors.");
-    // Fallback if GPS position is unavailable initially to ensure compass vectors still plot from map center
+    console.log("GPS updating temporarily unavailable. Sensor arrays holding azimuth heading tracking.");
     if (!myPos) {
         myPos = [map.getCenter().lat, map.getCenter().lng];
         updateAzimuthVectors();
