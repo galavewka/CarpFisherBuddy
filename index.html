@@ -415,13 +415,38 @@ let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 let sensorsHooked = false;
 
+window.addEventListener('load', initSensors);
+
+async function initSensors() {
+    if (sensorsHooked) return;
+
+    try {
+        if (
+            typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function'
+        ) {
+            const permission = await DeviceOrientationEvent.requestPermission();
+
+            if (permission === 'granted') {
+                sensorsHooked = true;
+                window.addEventListener('deviceorientationabsolute', handleCompass, true);
+                window.addEventListener('deviceorientation', handleCompass, true);
+            }
+        } else {
+            sensorsHooked = true;
+            window.addEventListener('deviceorientationabsolute', handleCompass, true);
+            window.addEventListener('deviceorientation', handleCompass, true);
+        }
+    } catch(err) {
+        console.error(err);
+    }
+}
+
+
 let lastHeading = null;
 const SMOOTHING_FACTOR = 0.25; 
 
 // Silently hook hardware listeners on first body interaction to ensure early real-time engine startup
-document.body.addEventListener('click', triggerSensorUnlock, { once: false });
-document.body.addEventListener('touchstart', triggerSensorUnlock, { once: false });
-
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
     sensorsHooked = true;
