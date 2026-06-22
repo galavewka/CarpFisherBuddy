@@ -219,8 +219,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 <div class="toolbar glass-panel">
     <div class="tool-row">
-        <button onclick="triggerSensorUnlock(); beginSpot()">📍 Add Swim</button>
-        <button onclick="triggerSensorUnlock(); openSession()" class="success">🎣 New Session</button>
+        <button onclick="beginSpot()">📍 Add Swim</button>
+        <button onclick="openSession()" class="success">🎣 New Session</button>
     </div>
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
@@ -313,11 +313,9 @@ let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 let sensorsHooked = false;
 
-// STATIONARY TELEMETRY FILTER PIPELINE
-let lastHeading = null;
+// SMOOTH ROTATION PIPELINE
 let headingBuffer = [];
-const CIRCULAR_WINDOW_SIZE = 15; // Aggressively smooths micro-fluctuations over 15 historical points
-const NOISE_GATE_THRESHOLD = 1.5; // Do not update map lines unless heading moves more than 1.5 degrees
+const BUFFER_SIZE = 8; // Moving average size to eliminate noise while keeping direction fluid
 
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
@@ -336,36 +334,9 @@ function triggerSensorUnlock() {
     }
 }
 
-function processAndApplyHeading(rawHeading) {
-    // 1. Enqueue raw components to circular window buffer
-    headingBuffer.push(rawHeading);
-    if (headingBuffer.length > CIRCULAR_WINDOW_SIZE) {
-        headingBuffer.shift();
-    }
-
-    // 2. Compute circular statistic mean vectors to elegantly resolve 0°/360° overlap issues
-    let sinTotal = 0, cosTotal = 0;
-    for (let i = 0; i < headingBuffer.length; i++) {
-        let rad = (headingBuffer[i] * Math.PI) / 180;
-        sinTotal += Math.sin(rad);
-        cosTotal += Math.cos(rad);
-    }
-    let calculatedHeading = (Math.atan2(sinTotal, cosTotal) * 180 / Math.PI + 360) % 360;
-
-    // 3. Noise Gate implementation when standing still
-    if (lastHeading !== null) {
-        let difference = Math.abs(calculatedHeading - lastHeading);
-        if (difference > 180) difference = 360 - difference;
-        
-        if (difference < NOISE_GATE_THRESHOLD) {
-            return; // Ignore micro-jitter, retain previous locked direction entry
-        }
-    }
-
-    myHeading = calculatedHeading;
-    lastHeading = calculatedHeading;
-    updateAzimuthVectors();
-}
+// Global immediate activation capture
+document.body.addEventListener('click', triggerSensorUnlock, { once: true });
+document.body.addEventListener('touchstart', triggerSensorUnlock, { once: true });
 
 function handleCompass(e) {
     let heading = e.alpha;
@@ -376,17 +347,29 @@ function handleCompass(e) {
     }
     
     if (heading !== null && heading !== undefined) {
-        processAndApplyHeading(heading);
+        // Enqueue to moving vector window buffer
+        headingBuffer.push(heading);
+        if (headingBuffer.length > BUFFER_SIZE) {
+            headingBuffer.shift();
+        }
+
+        // Circular statistics mean vector computation
+        let sinTotal = 0, cosTotal = 0;
+        for (let i = 0; i < headingBuffer.length; i++) {
+            let rad = (headingBuffer[i] * Math.PI) / 180;
+            sinTotal += Math.sin(rad);
+            cosTotal += Math.cos(rad);
+        }
+        
+        myHeading = (Math.atan2(sinTotal, cosTotal) * 180 / Math.PI + 360) % 360;
+        updateAzimuthVectors();
     }
 }
 
 navigator.geolocation.watchPosition(p=>{
  myPos=[p.coords.latitude,p.coords.longitude];
- 
- // If device reports valid GPS heading (usually only happens if moving), apply it. 
- // If you are completely standing still, this values becomes null, defaulting to the robust compass system.
  if(p.coords.heading !== null && !isNaN(p.coords.heading)) {
-     processAndApplyHeading(p.coords.heading);
+     myHeading = p.coords.heading;
  }
  
  const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
@@ -560,10 +543,10 @@ function render(){
     <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
  </div>
  <div class="action-grid">
-   <button onclick="triggerSensorUnlock(); startBase()">⚓ Anchor</button>
+   <button onclick="startBase()">⚓ Anchor</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
-   <button onclick="triggerSensorUnlock(); startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="triggerSensorUnlock(); startCast()" class="danger">🚀 Log Cast</button>
+   <button onclick="startBait()" class="warning">🎯 Add Bait</button>
+   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
