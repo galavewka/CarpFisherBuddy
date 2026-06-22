@@ -197,7 +197,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 #placeBtns button.danger { background: rgba(255, 0, 85, 0.95) !important; border-color: #ff0055 !important; box-shadow: 0 4px 25px rgba(255,0,85,0.55) !important; font-weight: 900; }
 #placeBtns button.success { background: rgba(0, 255, 100, 0.95) !important; border-color: #00ff64 !important; box-shadow: 0 4px 25px rgba(0,255,100,0.55) !important; font-weight: 900; }
 
-/* Archive List Styling Updates */
 .history-item {
     background: rgba(6, 11, 25, 0.45);
     border: 1px solid var(--border-glass);
@@ -321,8 +320,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 <div class="toolbar glass-panel">
     <div class="tool-row">
-        <button onclick="triggerSensorUnlock(); beginSpot()">📍 Add Swim</button>
-        <button onclick="triggerSensorUnlock(); openSession()" class="success">🎣 New Session</button>
+        <button onclick="beginSpot()">📍 Add Swim</button>
+        <button onclick="openSession()" class="success">🎣 New Session</button>
     </div>
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
@@ -419,6 +418,7 @@ let sensorsHooked = false;
 let lastHeading = null;
 const SMOOTHING_FACTOR = 0.25; 
 
+// Auto-initialize orientation tracking right away
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
     sensorsHooked = true;
@@ -435,6 +435,11 @@ function triggerSensorUnlock() {
         window.addEventListener('deviceorientation', handleCompass, true);
     }
 }
+
+// Hook sensor tracking directly on script execution and fallback to screen interactions
+triggerSensorUnlock();
+window.addEventListener('click', triggerSensorUnlock, { once: true });
+window.addEventListener('touchstart', triggerSensorUnlock, { once: true });
 
 function handleCompass(e) {
     let heading = e.alpha;
@@ -478,7 +483,14 @@ navigator.geolocation.watchPosition(p=>{
 
  updateAzimuthVectors();
  redraw();
-}, err=>console.log("GPS Telemetry initialization error."), {
+}, err=> {
+    console.log("GPS updating suspended or bad tracking. Sensor arrays maintaining positioning vectors.");
+    // Fallback if GPS position is unavailable initially to ensure compass vectors still plot from map center
+    if (!myPos) {
+        myPos = [map.getCenter().lat, map.getCenter().lng];
+        updateAzimuthVectors();
+    }
+}, {
     enableHighAccuracy: true,
     maximumAge: 0,
     timeout: 10000
@@ -533,15 +545,12 @@ function getCalculatedAnchor(sess) {
 function getSessionDuration(s) {
     let start = s.startTimestamp;
     let end = s.endTimestamp || (s.status === 'active' ? Date.now() : null);
-    
     if (!start) return "N/A";
     let diffMs = end - start;
     if (diffMs < 0) diffMs = 0;
-    
     let diffMins = Math.floor(diffMs / 60000);
     let hrs = Math.floor(diffMins / 60);
     let mins = diffMins % 60;
-    
     if (hrs > 0) return `${hrs}h ${mins}m`;
     return `${mins}m`;
 }
@@ -550,11 +559,9 @@ function renderTimelineChart(sessionId, fishArray) {
     const canvas = document.getElementById(`chart-${sessionId}`);
     if (!canvas) return;
 
-    // Aggregate catches into hourly blocks (00:00 - 23:00)
     const hourlyData = Array(24).fill(0);
     fishArray.forEach(f => {
         if (f.time) {
-            // Extracts hour integer string parsing logic safely
             const matches = f.time.match(/^(\d+)/);
             if (matches) {
                 let hr = parseInt(matches[1], 10);
@@ -565,7 +572,6 @@ function renderTimelineChart(sessionId, fishArray) {
         }
     });
 
-    // Determine bounds dynamically to focus around timeline peaks
     const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
     new Chart(canvas, {
@@ -709,10 +715,10 @@ function render(){
     <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
  </div>
  <div class="action-grid">
-   <button onclick="triggerSensorUnlock(); startBase()">⚓ Anchor</button>
+   <button onclick="startBase()">⚓ Anchor</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
-   <button onclick="triggerSensorUnlock(); startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="triggerSensorUnlock(); startCast()" class="danger">🚀 Log Cast</button>
+   <button onclick="startBait()" class="warning">🎯 Add Bait</button>
+   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
@@ -787,7 +793,6 @@ function render(){
       });
       h+=`</div></details>`;
 
-      // Cache closure invocation pattern to compile graphs right after HTML insertion
       chartCallbacks.push(() => renderTimelineChart(s.id, s.fish));
    } else {
       h+=`
@@ -799,9 +804,7 @@ function render(){
  });
  document.getElementById("history").innerHTML=h;
 
- // Ignite all configured Chart.js nodes seamlessly
  chartCallbacks.forEach(cb => cb());
-
  setTimeout(() => { map.invalidateSize(); }, 50);
 }
 
