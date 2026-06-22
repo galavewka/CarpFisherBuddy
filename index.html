@@ -197,7 +197,108 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 #placeBtns button.danger { background: rgba(255, 0, 85, 0.95) !important; border-color: #ff0055 !important; box-shadow: 0 4px 25px rgba(255,0,85,0.55) !important; font-weight: 900; }
 #placeBtns button.success { background: rgba(0, 255, 100, 0.95) !important; border-color: #00ff64 !important; box-shadow: 0 4px 25px rgba(0,255,100,0.55) !important; font-weight: 900; }
 
-.fish-badge { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; margin: 6px 0; font-size: 0.8rem; border: 1px solid var(--border-glass); border-left: 4px solid var(--accent-blue); }
+.history-item {
+    background: rgba(6, 11, 25, 0.45);
+    border: 1px solid var(--border-glass);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.history-item.previewing {
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 15px rgba(255, 136, 0, 0.15), inset 0 0 8px rgba(255, 136, 0, 0.05);
+}
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+}
+.history-title {
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    color: #fff;
+    text-transform: uppercase;
+}
+.history-status {
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+.history-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.history-meta-item {
+    background: rgba(0,0,0,0.25);
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.03);
+}
+.history-meta-label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 2px;
+}
+.history-meta-value {
+    font-weight: 600;
+    color: var(--text-main);
+}
+.history-details {
+    margin-top: 8px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+}
+.history-details summary {
+    padding: 8px 10px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--accent-blue);
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.history-details summary::-webkit-details-marker { display: none; }
+.history-details[open] summary {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.chart-wrapper {
+    padding: 8px;
+    background: rgba(2, 5, 14, 0.6);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.catch-list {
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+.catch-item {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.04);
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
 .remove-btn { background: rgba(255, 51, 102, 0.08); color: #ffa1b5; padding: 5px; font-size: 0.65rem; margin-top: 6px; border-radius: 5px; width: 100%; border: 1px solid rgba(255, 51, 102, 0.2); }
 .remove-btn:hover { background: var(--accent-red); color: #fff; }
 
@@ -207,13 +308,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 .live-indicator { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; background: rgba(0,255,135,0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent-green); font-weight: 900; }
 .live-dot { width: 6px; height: 6px; background-color: var(--accent-green); border-radius: 50%; animation: blink 1s infinite linear; }
 @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
-
-/* Accordion & Analytic Data Matrix Styles */
-.accordion-trigger { display: flex; justify-content: space-between; align-items: center; padding: 8px 0 4px 0; border-top: 1px solid var(--border-glass); margin-top: 8px; cursor: pointer; color: var(--accent-blue); font-size: 0.7rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-.accordion-content { display: none; margin-top: 6px; }
-.accordion-content.open { display: block; }
-.analytics-chart-container { background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px; margin-top: 8px; }
-.metadata-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-glass); border-radius: 6px; padding: 6px; margin: 6px 0; font-size: 0.68rem; color: var(--text-muted); }
 
 .leaflet-control-container { display: none !important; }
 </style>
@@ -226,8 +320,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 <div class="toolbar glass-panel">
     <div class="tool-row">
-        <button onclick="triggerSensorUnlock(); beginSpot()">📍 Add Swim</button>
-        <button onclick="triggerSensorUnlock(); openSession()" class="success">🎣 New Session</button>
+        <button onclick="beginSpot()">📍 Add Swim</button>
+        <button onclick="openSession()" class="success">🎣 New Session</button>
     </div>
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
@@ -240,7 +334,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 <div class="scroll-container">
     <div class="card glass-panel">
-        <h3>Data Log & Session History</h3>
+        <h3>Telemetry Logs & Sessions</h3>
         <div id="history"></div>
     </div>
 </div>
@@ -292,22 +386,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
 const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
-
-// Persist the dropdown toggle visibility states locally across view re-renders
-let openAccordions = {};
-
-function toggleAccordion(id) {
-    openAccordions[id] = !openAccordions[id];
-    const el = document.getElementById(`accordion-${id}`);
-    const arrow = document.getElementById(`arrow-${id}`);
-    if(el && arrow) {
-        if(openAccordions[id]) { el.classList.add('open'); arrow.innerText = '▲'; }
-        else { el.classList.remove('open'); arrow.innerText = '▼'; }
-    }
-}
 
 function createTileLayer(key) {
     if (key === 'topo') return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
@@ -336,6 +418,7 @@ let sensorsHooked = false;
 let lastHeading = null;
 const SMOOTHING_FACTOR = 0.25; 
 
+// Auto-initialize orientation tracking right away
 function triggerSensorUnlock() {
     if (sensorsHooked) return;
     sensorsHooked = true;
@@ -352,6 +435,11 @@ function triggerSensorUnlock() {
         window.addEventListener('deviceorientation', handleCompass, true);
     }
 }
+
+// Hook sensor tracking directly on script execution and fallback to screen interactions
+triggerSensorUnlock();
+window.addEventListener('click', triggerSensorUnlock, { once: true });
+window.addEventListener('touchstart', triggerSensorUnlock, { once: true });
 
 function handleCompass(e) {
     let heading = e.alpha;
@@ -395,7 +483,14 @@ navigator.geolocation.watchPosition(p=>{
 
  updateAzimuthVectors();
  redraw();
-}, err=>console.log("GPS Telemetry initialization error."), {
+}, err=> {
+    console.log("GPS updating suspended or bad tracking. Sensor arrays maintaining positioning vectors.");
+    // Fallback if GPS position is unavailable initially to ensure compass vectors still plot from map center
+    if (!myPos) {
+        myPos = [map.getCenter().lat, map.getCenter().lng];
+        updateAzimuthVectors();
+    }
+}, {
     enableHighAccuracy: true,
     maximumAge: 0,
     timeout: 10000
@@ -445,6 +540,72 @@ function activeSession(){ return db.sessions.find(x=>x.status==="active"); }
 function getCalculatedAnchor(sess) {
    if (sess && sess.customBase) return [sess.customBase.lat, sess.customBase.lng];
    return myPos;
+}
+
+function getSessionDuration(s) {
+    let start = s.startTimestamp;
+    let end = s.endTimestamp || (s.status === 'active' ? Date.now() : null);
+    if (!start) return "N/A";
+    let diffMs = end - start;
+    if (diffMs < 0) diffMs = 0;
+    let diffMins = Math.floor(diffMs / 60000);
+    let hrs = Math.floor(diffMins / 60);
+    let mins = diffMins % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    return `${mins}m`;
+}
+
+function renderTimelineChart(sessionId, fishArray) {
+    const canvas = document.getElementById(`chart-${sessionId}`);
+    if (!canvas) return;
+
+    const hourlyData = Array(24).fill(0);
+    fishArray.forEach(f => {
+        if (f.time) {
+            const matches = f.time.match(/^(\d+)/);
+            if (matches) {
+                let hr = parseInt(matches[1], 10);
+                if (f.time.toLowerCase().includes('pm') && hr < 12) hr += 12;
+                if (f.time.toLowerCase().includes('am') && hr === 12) hr = 0;
+                if (hr >= 0 && hr < 24) hourlyData[hr]++;
+            }
+        }
+    });
+
+    const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
+
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Catches / Hour',
+                data: hourlyData,
+                borderColor: '#00f0ff',
+                backgroundColor: 'rgba(0, 240, 255, 0.08)',
+                borderWidth: 2,
+                pointBackgroundColor: '#00ff87',
+                pointRadius: 3,
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                    ticks: { color: '#9ca3af', font: { size: 8 }, maxTicksLimit: 8 }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                    ticks: { color: '#9ca3af', font: { size: 8 }, stepSize: 1, beginAtZero: true }
+                }
+            }
+        }
+    });
 }
 
 function showModal(id) { document.getElementById(id).classList.add('open'); }
@@ -535,48 +696,6 @@ function getFormattedDate(d) {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-// Generate an inline native SVG path line chart mapping specimen weights
-function generateInlineChartSVG(fishArray) {
-    if(!fishArray || fishArray.length === 0) return `<div style="font-size:0.65rem; color:var(--text-muted); text-align:center;">No analytics vector points to plot.</div>`;
-    
-    let weights = fishArray.map(f => parseFloat(f.weight) || 0);
-    let maxW = Math.max(...weights, 5);
-    let minW = 0;
-    
-    let width = 280, height = 70, padding = 12;
-    let chartW = width - (padding * 2);
-    let chartH = height - (padding * 2);
-    
-    let points = "";
-    fishArray.forEach((f, i) => {
-        let w = parseFloat(f.weight) || 0;
-        let x = padding + (fishArray.length > 1 ? (i / (fishArray.length - 1)) * chartW : chartW / 2);
-        let y = padding + chartH - ((w - minW) / (maxW - minW || 1)) * chartH;
-        points += `${x},${y} `;
-    });
-    
-    let svgHtml = `<svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible;">
-        <line x1="${padding}" y1="${padding}" x2="${padding}" y2="${height-padding}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-        <line x1="${padding}" y1="${height-padding}" x2="${width-padding}" y2="${height-padding}" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>`;
-        
-    if(fishArray.length > 1) {
-        svgHtml += `<polyline points="${points}" fill="none" stroke="var(--accent-blue)" stroke-width="2" style="filter: drop-shadow(0 0 4px var(--accent-blue));" />`;
-    }
-    
-    fishArray.forEach((f, i) => {
-        let w = parseFloat(f.weight) || 0;
-        let x = padding + (fishArray.length > 1 ? (i / (fishArray.length - 1)) * chartW : chartW / 2);
-        let y = padding + chartH - ((w - minW) / (maxW - minW || 1)) * chartH;
-        svgHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--accent-green)"/>`;
-        if(i === 0 || i === fishArray.length - 1 || fishArray.length <= 4) {
-            svgHtml += `<text x="${x}" y="${y - 5}" fill="#fff" font-size="6" font-weight="bold" text-anchor="middle">${w}kg</text>`;
-        }
-    });
-    
-    svgHtml += `</svg>`;
-    return svgHtml;
-}
-
 function render(){
  const a=activeSession();
  if(a) { document.body.classList.add("session-active"); } else { document.body.classList.remove("session-active"); }
@@ -596,62 +715,96 @@ function render(){
     <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
  </div>
  <div class="action-grid">
-   <button onclick="triggerSensorUnlock(); startBase()">⚓ Anchor</button>
+   <button onclick="startBase()">⚓ Anchor</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
-   <button onclick="triggerSensorUnlock(); startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="triggerSensorUnlock(); startCast()" class="danger">🚀 Log Cast</button>
+   <button onclick="startBait()" class="warning">🎯 Add Bait</button>
+   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
 
  let h="";
- [...db.sessions].reverse().forEach(s=>{
-   let statusText = s.status === "active" ? `<span style="color:var(--accent-green)">● ONLINE</span>` : `🏁 ARCHIVED`;
-   let isPreviewing = previewSessionId === s.id;
-   let isOpen = openAccordions[s.id] || false;
-   
-   h+=`<div class="fish-badge" style="${isPreviewing ? 'border-color: var(--accent-orange); background: rgba(0,0,0,0.4);' : ''}">
-   <div style="display:flex; justify-content:space-between; font-size:0.8rem;"><b>${s.name}</b> <span>${statusText}</span></div>
-   <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Swim: ${s.spotName} | Init: ${s.startDate || 'N/A'}</div>`;
-   h+=`<button class="preview-btn ${isPreviewing?'active':''}" onclick="previewSession('${s.id}')">${isPreviewing ? '🔒 Close Matrix' : '👁️ View Matrix'}</button>`;
+ const chartCallbacks = [];
 
-   // Collapsible Dropdown summary trigger
-   h+=`<div class="accordion-trigger" onclick="toggleAccordion('${s.id}')">
-        <span>📋 Telemetry Logs & Metadata</span>
-        <span id="arrow-${s.id}">${isOpen ? '▲' : '▼'}</span>
-       </div>`;
-       
-   h+=`<div class="accordion-content ${isOpen ? 'open' : ''}" id="accordion-${s.id}">`;
+ [...db.sessions].reverse().forEach(s=>{
+   let isPreviewing = previewSessionId === s.id;
+   let statusHtml = s.status === "active" ? `<span style="color:var(--accent-green)" class="history-status">● LIVE</span>` : `<span style="color:var(--text-muted)" class="history-status">🏁 ARCHIVED</span>`;
    
-   // Session Metadata Matrix Block
-   h+=`<div class="metadata-grid">
-        <div><b>Start Time:</b> ${s.startTime || 'N/A'}</div>
-        <div><b>End Time:</b> ${s.endTime || 'Running'}</div>
-        <div><b>Total Baits:</b> ${s.baits ? s.baits.length : 0} nodes</div>
-        <div><b>Total Casts:</b> ${s.casts ? s.casts.length : 0} paths</div>
+   let duration = getSessionDuration(s);
+   let timeline = `${s.startDate} @ ${s.startTime}`;
+   if (s.endDate && s.endTime) {
+       timeline += ` → ${s.endDate} @ ${s.endTime}`;
+   } else if (s.status === 'active') {
+       timeline += ` → Running`;
+   }
+   
+   h+=`
+   <div class="history-item ${isPreviewing ? 'previewing' : ''}">
+       <div class="history-header">
+           <div class="history-title">${s.name}</div>
+           <div>${statusHtml}</div>
+       </div>
+       <div class="history-meta-grid">
+           <div class="history-meta-item" style="grid-column: span 2;">
+               <div class="history-meta-label">Deployment Timeline</div>
+               <div class="history-meta-value">${timeline}</div>
+           </div>
+           <div class="history-meta-item">
+               <div class="history-meta-label">Swim Location</div>
+               <div class="history-meta-value">📍 ${s.spotName}</div>
+           </div>
+           <div class="history-meta-item">
+               <div class="history-meta-label">Session Duration</div>
+               <div class="history-meta-value">⏱️ ${duration}</div>
+           </div>
+       </div>
+       
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+           <button class="preview-btn ${isPreviewing?'active':''}" style="margin-top: 0; padding: 6px 12px; font-size: 0.65rem;" onclick="previewSession('${s.id}')">
+               ${isPreviewing ? '🔒 Close Matrix' : '👁️ View Matrix'}
+           </button>
        </div>`;
 
    if(s.fish && s.fish.length > 0){
-      h+=`<div class="analytics-chart-container">
-            <div style="font-size:0.55rem; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; font-weight:bold;">Weight Progression Vector Curve:</div>
-            ${generateInlineChartSVG(s.fish)}
-          </div>`;
+      h+=`
+      <details class="history-details" id="details-${s.id}">
+          <summary><div>🐟 Specimen Records (${s.fish.length})</div> <span style="font-size: 0.6rem; opacity: 0.6;">▼</span></summary>
           
-      h+=`<div style="margin-top:8px; font-size:0.65rem; font-weight:bold; text-transform:uppercase; color:var(--text-muted)">Catch Log Matrix:</div>`;
+          <div class="chart-wrapper">
+              <div style="font-size:0.55rem; text-transform:uppercase; color:var(--accent-blue); margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">Feeding Window Index</div>
+              <div style="height: 100px; position: relative;">
+                  <canvas id="chart-${s.id}"></canvas>
+              </div>
+          </div>
+
+          <div class="catch-list">`;
       s.fish.forEach(f=>{
-          h+=`<div style="background:rgba(0,0,0,0.3); padding:6px; border-radius:6px; margin-top:4px; font-size:0.75rem; border: 1px solid var(--border-glass);">
-                🐟 <b>${f.species}</b> — ⚖️ ${f.weight}kg | 📏 ${f.length}cm<br>
-                <span style="color:var(--accent-blue); font-size:0.65rem;">Tactical Setup: ${f.bait||'Unspecified'}</span>
-                <span style="float:right; font-size:0.6rem; color:var(--text-muted);">${f.time || ''}</span>
+          h+=`
+              <div class="catch-item">
+                  <div style="display:flex; justify-content:space-between; font-weight:700; color:#fff;">
+                      <span>🐟 ${f.species}</span>
+                      <span style="color: var(--accent-orange);">${f.weight}kg / ${f.length}cm</span>
+                  </div>
+                  <div style="color:var(--accent-blue); font-size:0.65rem; margin-top: 2px;">
+                      Setup: ${f.bait||'Unspecified'}
+                      <span style="float:right; color:var(--text-muted); font-weight:normal;">⏱️ ${f.time || ''}</span>
+                  </div>
               </div>`;
       });
+      h+=`</div></details>`;
+
+      chartCallbacks.push(() => renderTimelineChart(s.id, s.fish));
    } else {
-      h+=`<div style="font-size:0.7rem; color:var(--text-muted); text-align:center; padding:8px 0;">No specimen logs documented inside this sequence.</div>`;
+      h+=`
+      <div style="font-size: 0.65rem; color: var(--text-muted); text-align: center; padding: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; margin-top: 8px; border: 1px dashed rgba(255,255,255,0.04);">
+          No specimen logs indexed.
+      </div>`;
    }
-   
-   h+="</div></div>";
+   h+="</div>";
  });
  document.getElementById("history").innerHTML=h;
+
+ chartCallbacks.forEach(cb => cb());
  setTimeout(() => { map.invalidateSize(); }, 50);
 }
 
@@ -681,8 +834,10 @@ function createSession(){
    status:"active",
    startDate: nowDate,
    startTime: nowTime,
+   startTimestamp: Date.now(),
    endDate: null,
    endTime: null,
+   endTimestamp: null,
    customBase:null,
    fish:[],
    baits:[],
@@ -839,6 +994,7 @@ function confirmEndSession() {
  s.status="completed";
  s.endTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
  s.endDate = getFormattedDate(dateObj);
+ s.endTimestamp = Date.now();
  
  closeModal("confirmEndModal");
  persist(); redraw(); render();
