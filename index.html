@@ -415,37 +415,35 @@ function switchBaseLayer(key) {
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 
-/* --- BULLETPROOF HARDWARE SENSOR & GPS LOGIC --- */
+/* --- OPTIMIZED HARDWARE SENSOR & GPS LOGIC --- */
 let sensorsHooked = false;
 let lastHeading = null;
-const SMOOTHING_FACTOR = 0.25;
+const SMOOTHING_FACTOR = 0.15; // Slightly heavier smoothing to reduce visual jitter
 
-// 1. Initialize GPS immediately on load
+// Flags to decouple sensors from rendering
+let headingDirty = false;
+let gpsDirty = false;
+let gpsMovedSufficiently = false; // Used to limit heavy redraws
+
+// 1. Initialize GPS & Render Loop on load
 window.addEventListener('load', () => {
     startGPS();
+    requestAnimationFrame(hardwareRenderLoop); // Start the high-performance graphics loop
 });
 
-// 2. Universal Stealth Trigger: Binds to the FIRST TAP for BOTH Android & iOS
-// Modern mobile browsers often block sensors unless the user interacts with the page first.
+// 2. Universal Stealth Trigger for Permissions
 document.body.addEventListener('click', async () => {
     if (sensorsHooked) return;
-    sensorsHooked = true; // Prevent multiple triggers
+    sensorsHooked = true;
 
-    // iOS 13+ strict permission handling
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
             const permission = await DeviceOrientationEvent.requestPermission();
             if (permission === 'granted') {
                 window.addEventListener('deviceorientation', handleCompass, true);
-            } else {
-                console.log('Compass permission denied by user.');
             }
-        } catch (error) {
-            console.error('Permission error:', error);
-        }
+        } catch (error) { console.error('Permission error:', error); }
     } else {
-        // Android / Standard Browsers
-        // We attach to BOTH absolute and standard, and filter for actual compass data inside the handler.
         window.addEventListener('deviceorientationabsolute', handleCompass, true);
         window.addEventListener('deviceorientation', handleCompass, true);
     }
@@ -454,37 +452,27 @@ document.body.addEventListener('click', async () => {
 function handleCompass(e) {
     let heading = null;
     
-    // iOS native compass property
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
         heading = e.webkitCompassHeading; 
-    } 
-    // Android math-based compass property
-    else if (e.alpha !== null) {
-        // CRITICAL FOR ANDROID: We ONLY want 'alpha' if it represents absolute Earth coordinates.
-        // If e.absolute is false, it's just relative gyroscope twisting.
+    } else if (e.alpha !== null) {
         if (e.type === 'deviceorientationabsolute' || e.absolute === true) {
-            // Android outputs 360 -> 0 as you turn counter-clockwise. Reverse it for true heading.
             heading = 360 - e.alpha; 
         }
     }
     
     if (heading !== null) {
-        // Apply smoothing to prevent the line from jittering wildly
-        if (lastHeading === null) {
-            lastHeading = heading;
-        } else {
+        if (lastHeading === null) { lastHeading = heading; } 
+        else {
             let diff = heading - lastHeading;
             if (diff > 180) diff -= 360;
             if (diff < -180) diff += 360;
             heading = lastHeading + diff * SMOOTHING_FACTOR;
         }
-        
         myHeading = (heading + 360) % 360;
         lastHeading = myHeading;
         
-        // Force the lines to update instantly on hardware sensor tick
-        updateAzimuthVectors();
-        redraw();
+        // Flag that we need to draw a new line, but DON'T draw it yet!
+        headingDirty = true; 
     }
 }
 
@@ -493,23 +481,14 @@ function startGPS() {
         navigator.geolocation.watchPosition(p => {
             myPos = [p.coords.latitude, p.coords.longitude];
             
-            // Fallback: Use GPS heading only if hardware compass hasn't locked in yet
             if (!sensorsHooked && p.coords.heading !== null && !isNaN(p.coords.heading)) {
                 myHeading = p.coords.heading;
+                headingDirty = true;
             }
             
-            const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
-            const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
-            
-            if (!me) { 
-                me = L.marker(myPos,{icon}).addTo(map); 
-                map.setView(myPos,16); 
-            } else {
-                me.setLatLng(myPos);
-            }
-
-            updateAzimuthVectors();
-            redraw();
+            // Flag that GPS updated
+            gpsDirty = true; 
+            gpsMovedSufficiently = true;
         }, err => console.log("GPS Telemetry error: " + err.message), {
             enableHighAccuracy: true,
             maximumAge: 0,
@@ -517,7 +496,49 @@ function startGPS() {
         });
     }
 }
-/* --- END UPDATED LOGIC --- */
+
+// 3. High-Performance Render Loop
+// This runs exactly at your screen's refresh rate (e.g., 60fps), stopping DOM overload.
+function hardwareRenderLoop() {
+    let needsVectorUpdate = false;
+
+    // Handle GPS position updates smoothly
+    if (gpsDirty && myPos) {
+        const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
+        const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
+        
+        if (!me) { 
+            me = L.marker(myPos,{icon}).addTo(map); 
+            map.setView(myPos,16); 
+        } else {
+            me.setLatLng(myPos); // Efficiently move the dot without rebuilding the map
+        }
+        gpsDirty = false;
+        needsVectorUpdate = true;
+    }
+
+    // Handle Compass updates smoothly
+    if (headingDirty) {
+        needsVectorUpdate = true;
+        headingDirty = false;
+    }
+
+    // Update the blue aiming laser efficiently
+    if (needsVectorUpdate && myPos) {
+        updateAzimuthVectors(); 
+    }
+
+    // ONLY rebuild the heavy session data if the phone physically moved
+    // We strictly prevent compass twitches from triggering map rebuilds
+    if (gpsMovedSufficiently) {
+        redraw();
+        gpsMovedSufficiently = false;
+    }
+
+    // Queue the next frame
+    requestAnimationFrame(hardwareRenderLoop);
+}
+/* --- END OPTIMIZED LOGIC --- */
 
 function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
     const R = 6378137;
