@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -413,71 +414,59 @@ function switchBaseLayer(key) {
 
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
+
+/* --- UPDATED HARDWARE SENSOR & GPS LOGIC --- */
 let sensorsHooked = false;
+let lastHeading = null;
+const SMOOTHING_FACTOR = 0.25;
 
-window.addEventListener('load', initSensors);
-
-async function initSensors() {
-    if (sensorsHooked) return;
-
-    try {
-        if (
-            typeof DeviceOrientationEvent !== 'undefined' &&
-            typeof DeviceOrientationEvent.requestPermission === 'function'
-        ) {
-            const permission = await DeviceOrientationEvent.requestPermission();
-
-            if (permission === 'granted') {
-                sensorsHooked = true;
-                window.addEventListener('deviceorientationabsolute', handleCompass, true);
-                window.addEventListener('deviceorientation', handleCompass, true);
-            }
-        } else {
-            sensorsHooked = true;
+// 1. Initialize GPS immediately on load, and Compass for devices that don't need tap-permissions (Android/PC)
+window.addEventListener('load', () => {
+    startGPS();
+    
+    if (typeof DeviceOrientationEvent === 'undefined' || typeof DeviceOrientationEvent.requestPermission !== 'function') {
+        if ('ondeviceorientationabsolute' in window) {
             window.addEventListener('deviceorientationabsolute', handleCompass, true);
+        } else {
             window.addEventListener('deviceorientation', handleCompass, true);
         }
-    } catch(err) {
-        console.error(err);
+        sensorsHooked = true;
     }
-}
+});
 
-
-let lastHeading = null;
-const SMOOTHING_FACTOR = 0.25; 
-
-// Silently hook hardware listeners on first body interaction to ensure early real-time engine startup
-function triggerSensorUnlock() {
+// 2. iOS 13+ Stealth Permission Trigger: Binds to the very first tap the user makes anywhere on the screen
+document.body.addEventListener('click', async () => {
     if (sensorsHooked) return;
-    sensorsHooked = true;
 
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-            .then(res => {
-                if (res === 'granted') {
-                    window.addEventListener('deviceorientationabsolute', handleCompass, true);
-                } else {
-                    sensorsHooked = false; // reset flag if denied
-                }
-            }).catch(err => {
-                console.error(err);
-                sensorsHooked = false;
-            });
-    } else {
-        window.addEventListener('deviceorientationabsolute', handleCompass, true);
-        window.addEventListener('deviceorientation', handleCompass, true);
+        try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission === 'granted') {
+                sensorsHooked = true;
+                window.addEventListener('deviceorientation', handleCompass, true);
+            } else {
+                console.log('Compass permission denied by user.');
+            }
+        } catch (error) {
+            console.error('Permission error:', error);
+        }
     }
-}
+}, { once: true });
 
 function handleCompass(e) {
-    let heading = e.alpha;
+    let heading = null;
+    
+    // iOS provides absolute compass heading natively
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
         heading = e.webkitCompassHeading; 
-    } else if (e.absolute && e.alpha !== null) {
+    } 
+    // Android provides alpha on absolute orientation, mathematically reverse it for true compass
+    else if (e.alpha !== null) {
         heading = 360 - e.alpha; 
     }
     
-    if (heading !== null && heading !== undefined) {
+    if (heading !== null) {
+        // Apply smoothing to prevent jitter
         if (lastHeading === null) {
             lastHeading = heading;
         } else {
@@ -493,31 +482,36 @@ function handleCompass(e) {
     }
 }
 
-navigator.geolocation.watchPosition(p=>{
- myPos=[p.coords.latitude,p.coords.longitude];
- 
- // FIX JITTER: Only consume GPS heading data fallback if hardware compass streams haven't locked yet
- if(!sensorsHooked && p.coords.heading !== null && !isNaN(p.coords.heading)) {
-     myHeading = p.coords.heading;
- }
- 
- const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
- const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
- 
- if(!me){ 
-     me = L.marker(myPos,{icon}).addTo(map); 
-     map.setView(myPos,16); 
- } else {
-     me.setLatLng(myPos);
- }
+function startGPS() {
+    if ("geolocation" in navigator) {
+        navigator.geolocation.watchPosition(p => {
+            myPos = [p.coords.latitude, p.coords.longitude];
+            
+            // Fallback: Use GPS heading only if hardware sensors haven't locked in yet
+            if (!sensorsHooked && p.coords.heading !== null && !isNaN(p.coords.heading)) {
+                myHeading = p.coords.heading;
+            }
+            
+            const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
+            const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
+            
+            if (!me) { 
+                me = L.marker(myPos,{icon}).addTo(map); 
+                map.setView(myPos,16); 
+            } else {
+                me.setLatLng(myPos);
+            }
 
- updateAzimuthVectors();
- redraw();
-}, err=>console.log("GPS Telemetry initialization error."), {
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 10000
-});
+            updateAzimuthVectors();
+            redraw();
+        }, err => console.log("GPS Telemetry error: " + err.message), {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 5000
+        });
+    }
+}
+/* --- END UPDATED LOGIC --- */
 
 function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
     const R = 6378137;
