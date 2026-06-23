@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -323,7 +322,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
     <div class="tool-row">
         <button onclick="beginSpot()">📍 Add Swim</button>
         <button onclick="openSession()" class="success">🎣 New Session</button>
-        <button onclick="findMe()" class="secondary">📡 Find Me</button>
     </div>
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
@@ -415,24 +413,38 @@ function switchBaseLayer(key) {
 
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
-
 let sensorsHooked = false;
 
-function addCompassListeners(){
-    window.addEventListener('deviceorientationabsolute', handleCompass, true);
+window.addEventListener('load', initSensors);
+
+async function initSensors() {
+    if (sensorsHooked) return;
+
+    try {
+        if (
+            typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function'
+        ) {
+            const permission = await DeviceOrientationEvent.requestPermission();
+
+            if (permission === 'granted') {
+                sensorsHooked = true;
+                window.addEventListener('deviceorientationabsolute', handleCompass, true);
+                window.addEventListener('deviceorientation', handleCompass, true);
+            }
+        } else {
+            sensorsHooked = true;
+            window.addEventListener('deviceorientationabsolute', handleCompass, true);
+            window.addEventListener('deviceorientation', handleCompass, true);
+        }
+    } catch(err) {
+        console.error(err);
+    }
 }
 
-window.addEventListener('load', () => {
-    if (!(typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function')) {
-        sensorsHooked = true;
-        addCompassListeners();
-    }
-});
 
 let lastHeading = null;
-const SMOOTHING_FACTOR = 0.25;
- 
+const SMOOTHING_FACTOR = 0.25; 
 
 // Silently hook hardware listeners on first body interaction to ensure early real-time engine startup
 function triggerSensorUnlock() {
@@ -458,54 +470,30 @@ function triggerSensorUnlock() {
 }
 
 function handleCompass(e) {
-
-    if (e.alpha == null && e.webkitCompassHeading == null) return;
-
-    let heading;
-
-    if (e.webkitCompassHeading != null) {
-        heading = e.webkitCompassHeading;
-    } else {
-        heading = e.alpha;
+    let heading = e.alpha;
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+        heading = e.webkitCompassHeading; 
+    } else if (e.absolute && e.alpha !== null) {
+        heading = 360 - e.alpha; 
     }
-
-    if (lastHeading === null) {
-        lastHeading = heading;
-    } else {
-        let diff = heading - lastHeading;
-        if (diff > 180) diff -= 360;
-        if (diff < -180) diff += 360;
-        heading = lastHeading + diff * SMOOTHING_FACTOR;
-    }
-
-    myHeading = (heading + 360) % 360;
-    lastHeading = myHeading;
-
-    updateAzimuthVectors();
-}
-
-
-function findMe(){
-
-    if(myPos){
-        map.setView(myPos,18,{animate:true});
-    }
-
-    if(typeof DeviceOrientationEvent !== 'undefined' &&
-       typeof DeviceOrientationEvent.requestPermission === 'function' &&
-       !sensorsHooked){
-
-        DeviceOrientationEvent.requestPermission().then(r=>{
-            if(r==='granted'){
-                sensorsHooked=true;
-                addCompassListeners();
-            }
-        });
+    
+    if (heading !== null && heading !== undefined) {
+        if (lastHeading === null) {
+            lastHeading = heading;
+        } else {
+            let diff = heading - lastHeading;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            heading = lastHeading + diff * SMOOTHING_FACTOR;
+        }
+        
+        myHeading = (heading + 360) % 360;
+        lastHeading = myHeading;
+        updateAzimuthVectors();
     }
 }
 
-navigator.geolocation.watchPosition(
-p=>{
+navigator.geolocation.watchPosition(p=>{
  myPos=[p.coords.latitude,p.coords.longitude];
  
  // FIX JITTER: Only consume GPS heading data fallback if hardware compass streams haven't locked yet
