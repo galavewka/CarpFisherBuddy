@@ -415,34 +415,27 @@ function switchBaseLayer(key) {
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 
-/* --- UPDATED HARDWARE SENSOR & GPS LOGIC --- */
+/* --- BULLETPROOF HARDWARE SENSOR & GPS LOGIC --- */
 let sensorsHooked = false;
 let lastHeading = null;
 const SMOOTHING_FACTOR = 0.25;
 
-// 1. Initialize GPS immediately on load, and Compass for devices that don't need tap-permissions (Android/PC)
+// 1. Initialize GPS immediately on load
 window.addEventListener('load', () => {
     startGPS();
-    
-    if (typeof DeviceOrientationEvent === 'undefined' || typeof DeviceOrientationEvent.requestPermission !== 'function') {
-        if ('ondeviceorientationabsolute' in window) {
-            window.addEventListener('deviceorientationabsolute', handleCompass, true);
-        } else {
-            window.addEventListener('deviceorientation', handleCompass, true);
-        }
-        sensorsHooked = true;
-    }
 });
 
-// 2. iOS 13+ Stealth Permission Trigger: Binds to the very first tap the user makes anywhere on the screen
+// 2. Universal Stealth Trigger: Binds to the FIRST TAP for BOTH Android & iOS
+// Modern mobile browsers often block sensors unless the user interacts with the page first.
 document.body.addEventListener('click', async () => {
     if (sensorsHooked) return;
+    sensorsHooked = true; // Prevent multiple triggers
 
+    // iOS 13+ strict permission handling
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
             const permission = await DeviceOrientationEvent.requestPermission();
             if (permission === 'granted') {
-                sensorsHooked = true;
                 window.addEventListener('deviceorientation', handleCompass, true);
             } else {
                 console.log('Compass permission denied by user.');
@@ -450,23 +443,33 @@ document.body.addEventListener('click', async () => {
         } catch (error) {
             console.error('Permission error:', error);
         }
+    } else {
+        // Android / Standard Browsers
+        // We attach to BOTH absolute and standard, and filter for actual compass data inside the handler.
+        window.addEventListener('deviceorientationabsolute', handleCompass, true);
+        window.addEventListener('deviceorientation', handleCompass, true);
     }
 }, { once: true });
 
 function handleCompass(e) {
     let heading = null;
     
-    // iOS provides absolute compass heading natively
+    // iOS native compass property
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
         heading = e.webkitCompassHeading; 
     } 
-    // Android provides alpha on absolute orientation, mathematically reverse it for true compass
+    // Android math-based compass property
     else if (e.alpha !== null) {
-        heading = 360 - e.alpha; 
+        // CRITICAL FOR ANDROID: We ONLY want 'alpha' if it represents absolute Earth coordinates.
+        // If e.absolute is false, it's just relative gyroscope twisting.
+        if (e.type === 'deviceorientationabsolute' || e.absolute === true) {
+            // Android outputs 360 -> 0 as you turn counter-clockwise. Reverse it for true heading.
+            heading = 360 - e.alpha; 
+        }
     }
     
     if (heading !== null) {
-        // Apply smoothing to prevent jitter
+        // Apply smoothing to prevent the line from jittering wildly
         if (lastHeading === null) {
             lastHeading = heading;
         } else {
@@ -478,7 +481,10 @@ function handleCompass(e) {
         
         myHeading = (heading + 360) % 360;
         lastHeading = myHeading;
+        
+        // Force the lines to update instantly on hardware sensor tick
         updateAzimuthVectors();
+        redraw();
     }
 }
 
@@ -487,7 +493,7 @@ function startGPS() {
         navigator.geolocation.watchPosition(p => {
             myPos = [p.coords.latitude, p.coords.longitude];
             
-            // Fallback: Use GPS heading only if hardware sensors haven't locked in yet
+            // Fallback: Use GPS heading only if hardware compass hasn't locked in yet
             if (!sensorsHooked && p.coords.heading !== null && !isNaN(p.coords.heading)) {
                 myHeading = p.coords.heading;
             }
