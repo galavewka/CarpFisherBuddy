@@ -1,1050 +1,213 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>CarpFisher IQ - Tactical Console</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-<style>
-:root {
-    --bg-main: #02050e;
-    --bg-glass: rgba(13, 22, 43, 0.65);
-    --bg-glass-heavy: rgba(8, 14, 28, 0.95);
-    --accent-blue: #00f0ff;
-    --accent-gps: #38bdf8;
-    --accent-green: #00ff87;
-    --accent-orange: #ff8800;
-    --accent-red: #ff3366;
-    --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
-    --border-glass: rgba(255, 255, 255, 0.12);
-    --border-glow: rgba(0, 240, 255, 0.3);
-    --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, Helvetica, sans-serif;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>GPS & Compass Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-body {
-    margin: 0;
-    font-family: var(--font-stack);
-    background: var(--bg-main);
-    color: var(--text-main);
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.glass-panel {
-    background: var(--bg-glass);
-    backdrop-filter: blur(25px) saturate(180%);
-    -webkit-backdrop-filter: blur(25px) saturate(180%);
-    border: 1px solid var(--border-glass);
-    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.65), 
-                inset 0 1px 0 rgba(255, 255, 255, 0.15),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.4);
-}
-
-header {
-    background: rgba(4, 7, 14, 0.92);
-    backdrop-filter: blur(20px);
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-weight: 900;
-    letter-spacing: 4px;
-    font-size: 1.1rem;
-    border-bottom: 1px solid rgba(0, 240, 255, 0.35);
-    text-transform: uppercase;
-    color: #fff;
-    text-shadow: 0 0 12px rgba(0,240,255,0.5);
-    flex-shrink: 0;
-}
-
-.hardware-led {
-    width: 10px;
-    height: 10px;
-    background-color: var(--accent-green);
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--accent-green), 0 0 20px var(--accent-green);
-    animation: ledPulse 1.8s infinite ease-in-out;
-}
-
-@keyframes ledPulse {
-    0%, 100% { opacity: 0.4; transform: scale(0.9); box-shadow: 0 0 6px var(--accent-green); }
-    50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 14px var(--accent-green), 0 0 4px #fff; }
-}
-
-.pulsing-marker-bait {
-    width: 12px; height: 12px;
-    background: #ff00ff; border: 2px solid #fff; border-radius: 50%;
-    box-shadow: 0 0 12px #ff00ff;
-    animation: markerRingPulse 1.5s infinite ease-in-out;
-}
-.pulsing-marker-cast {
-    width: 12px; height: 12px;
-    background: #ef4444; border: 2px solid #fff; border-radius: 50%;
-    box-shadow: 0 0 12px #ef4444;
-    animation: markerRingPulse 1.5s infinite ease-in-out;
-}
-@keyframes markerRingPulse {
-    0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
-    70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
-    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-}
-
-@keyframes dashFlow {
-    to { stroke-dashoffset: -20; }
-}
-.animated-path {
-    stroke-dasharray: 6, 6;
-    animation: dashFlow 1s infinite linear;
-}
-
-.gps-dot-wrapper { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; }
-.gps-core-dot { width: 12px; height: 12px; background: #fff; border: 3px solid var(--accent-gps); border-radius: 50%; box-shadow: 0 0 8px rgba(56, 189, 248, 0.8); position: relative; z-index: 2; }
-.gps-pulse-aura { position: absolute; width: 26px; height: 26px; background: rgba(56, 189, 248, 0.25); border-radius: 50%; animation: gpsGlow 2s infinite ease-out; z-index: 1; }
-
-@keyframes gpsGlow {
-    0% { transform: scale(0.5); opacity: 1; }
-    100% { transform: scale(1.4); opacity: 0; }
-}
-
-#map {
-    height: 38vh;
-    width: 100%;
-    position: relative;
-    z-index: 10;
-    border-bottom: 1px solid var(--border-glass);
-    flex-shrink: 0;
-}
-
-.toolbar { margin: 8px 12px; padding: 8px; border-radius: 12px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
-.tool-row { display: flex; gap: 8px; width: 100%; }
-
-button {
-    flex: 1; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
-    background: rgba(0, 240, 255, 0.12); color: #fff; cursor: pointer; font-weight: 700; font-size: 0.8rem;
-    text-transform: uppercase; letter-spacing: 0.8px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-}
-button:hover { background: rgba(0, 240, 255, 0.22); border-color: var(--accent-blue); box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
-button:active { transform: scale(0.96); }
-
-button.success { background: rgba(0, 255, 135, 0.12); border-color: rgba(0,255,135,0.25); }
-button.success:hover { background: rgba(0, 255, 135, 0.28); border-color: var(--accent-green); box-shadow: 0 0 14px rgba(0, 255, 135, 0.35); }
-button.secondary { background: rgba(156, 163, 175, 0.12); border-color: rgba(156, 163, 175, 0.25); color: var(--text-muted); }
-button.secondary:hover { background: rgba(156, 163, 175, 0.28); border-color: #fff; color: #fff; }
-button.danger { background: rgba(255, 51, 102, 0.12); border-color: rgba(255,51,102,0.25); }
-button.danger:hover { background: rgba(255, 51, 102, 0.28); border-color: var(--accent-red); box-shadow: 0 0 14px rgba(255, 51, 102, 0.35); }
-button.warning { background: rgba(255, 136, 0, 0.12); border-color: rgba(255,136,0,0.25); }
-button.warning:hover { background: rgba(255, 136, 0, 0.28); border-color: var(--accent-orange); box-shadow: 0 0 14px rgba(255, 136, 0, 0.35); }
-
-.map-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: rgba(0,0,0,0.5); padding: 3px; border-radius: 8px; border: 1px solid var(--border-glass); }
-.map-btn { font-size: 0.65rem; padding: 6px 2px; background: transparent; border: 1px solid transparent; opacity: 0.4; border-radius: 6px; }
-.map-btn.active { background: rgba(0, 240, 255, 0.15); border: 1px solid rgba(0, 240, 255, 0.4); opacity: 1; color: var(--accent-blue); text-shadow: 0 0 8px rgba(0,240,255,0.4); }
-
-#active { flex-shrink: 0; }
-.active-session-card { border: 1px solid rgba(0, 255, 135, 0.3); box-shadow: 0 0 25px rgba(0, 255, 135, 0.12), inset 0 1px 0 rgba(255,255,255,0.1); margin: 4px 12px; padding: 10px; border-radius: 12px; }
-.scroll-container { flex: 1; overflow-y: auto; padding: 0 12px 12px 12px; margin-top: 4px; }
-.card { padding: 12px; border-radius: 12px; }
-.card h3 { margin-top: 0; margin-bottom: 10px; font-size: 0.8rem; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-glass); padding-bottom: 6px; }
-
-body.session-active .scroll-container { display: none !important; }
-body.session-active #map { height: 42vh; }
-
-.metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
-.metric-box { background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-glass); padding: 6px 2px; border-radius: 8px; text-align: center; }
-.metric-val { font-size: 1.2rem; font-weight: 900; color: var(--accent-blue); text-shadow: 0 0 8px rgba(0,240,255,0.3); }
-.metric-lbl { font-size: 0.6rem; text-transform: uppercase; color: var(--text-muted); margin-top: 1px; }
-
-.action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-.action-grid button { padding: 8px 10px; font-size: 0.75rem; }
-
-.modal { display: none; position: fixed; inset: 0; background: rgba(1, 3, 7, 0.9); align-items: center; justify-content: center; z-index: 20000; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 16px; }
-.modal.open { display: flex; }
-.box { background: var(--bg-glass-heavy); border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(0,240,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; width: 100%; max-width: 340px; box-sizing: border-box; }
-.box h3 { margin-top: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #fff; }
-
-input, select { width: 100%; padding: 10px 12px; margin: 6px 0 12px 0; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); color: var(--text-main); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
-input:focus, select:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 10px rgba(0,240,255,0.25); }
-
-#placeMode { display: none; position: fixed; inset: 0; z-index: 30000; background: var(--bg-main); }
-#placeMode.open { display: block; }
-#placeMap { height: 100vh; width: 100vw; position: absolute; inset: 0; z-index: 1; }
-
-#cross {
-    position: absolute;
-    left: 50%; top: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 44px;
-    font-weight: 300;
-    color: #ff0055;
-    pointer-events: none;
-    z-index: 1000;
-    text-shadow: 0 0 12px rgba(255,0,85,0.85);
-    animation: reticlePulse 2.5s infinite ease-in-out;
-}
-@keyframes reticlePulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.8; }
-    50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
-}
-
-#hud { position: absolute; top: calc(12px + env(safe-area-inset-top)); left: 12px; right: 12px; background: rgba(4, 7, 15, 0.95); backdrop-filter: blur(15px); padding: 10px; z-index: 1000; border-radius: 10px; border: 1px solid rgba(0, 240, 255, 0.35); text-align: center; font-size: 0.8rem; font-weight: 700; }
-#placeBtns { position: absolute; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; display: flex; gap: 12px; z-index: 1000; }
-
-#placeBtns button.danger { background: rgba(255, 0, 85, 0.95) !important; border-color: #ff0055 !important; box-shadow: 0 4px 25px rgba(255,0,85,0.55) !important; font-weight: 900; }
-#placeBtns button.success { background: rgba(0, 255, 100, 0.95) !important; border-color: #00ff64 !important; box-shadow: 0 4px 25px rgba(0,255,100,0.55) !important; font-weight: 900; }
-
-.history-item {
-    background: rgba(6, 11, 25, 0.45);
-    border: 1px solid var(--border-glass);
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 10px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.history-item.previewing {
-    border-color: var(--accent-orange);
-    box-shadow: 0 0 15px rgba(255, 136, 0, 0.15), inset 0 0 8px rgba(255, 136, 0, 0.05);
-}
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding-bottom: 6px;
-    margin-bottom: 8px;
-}
-.history-title {
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-    color: #fff;
-    text-transform: uppercase;
-}
-.history-status {
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.5px;
-}
-.history-meta-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-.history-meta-item {
-    background: rgba(0,0,0,0.25);
-    padding: 5px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.03);
-}
-.history-meta-label {
-    font-size: 0.55rem;
-    text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-    color: rgba(255,255,255,0.35);
-    margin-bottom: 2px;
-}
-.history-meta-value {
-    font-weight: 600;
-    color: var(--text-main);
-}
-.history-details {
-    margin-top: 8px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.05);
-    overflow: hidden;
-}
-.history-details summary {
-    padding: 8px 10px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    color: var(--accent-blue);
-    cursor: pointer;
-    user-select: none;
-    outline: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.history-details summary::-webkit-details-marker { display: none; }
-.history-details[open] summary {
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.chart-wrapper {
-    padding: 8px;
-    background: rgba(2, 5, 14, 0.6);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.catch-list {
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    max-height: 180px;
-    overflow-y: auto;
-}
-.catch-item {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.04);
-    padding: 6px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-}
-
-.remove-btn { background: rgba(255, 51, 102, 0.08); color: #ffa1b5; padding: 5px; font-size: 0.65rem; margin-top: 6px; border-radius: 5px; width: 100%; border: 1px solid rgba(255, 51, 102, 0.2); }
-.remove-btn:hover { background: var(--accent-red); color: #fff; }
-
-.preview-btn { background: transparent; color: var(--accent-blue); border: 1px solid rgba(0, 240, 255, 0.25); padding: 6px 10px; margin-top: 8px; border-radius: 6px; font-size: 0.7rem; }
-.preview-btn.active { background: var(--accent-orange); color: #fff; border-color: var(--accent-orange); }
-
-.live-indicator { display: inline-flex; align-items: center; gap: 4px; font-size: 0.65rem; background: rgba(0,255,135,0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent-green); font-weight: 900; }
-.live-dot { width: 6px; height: 6px; background-color: var(--accent-green); border-radius: 50%; animation: blink 1s infinite linear; }
-@keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
-
-.leaflet-control-container { display: none !important; }
-</style>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        /* Overlay UI */
+        #start-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:active { background-color: #0056b3; }
+        
+        /* Custom Marker CSS */
+        .user-marker-container {
+            width: 24px;
+            height: 24px;
+            position: relative;
+            /* Smooth rotation transition */
+            transition: transform 0.1s linear; 
+        }
+        /* The blue GPS circle */
+        .gps-circle {
+            width: 20px;
+            height: 20px;
+            background-color: #007bff;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+        }
+        /* The red compass heading line */
+        .heading-line {
+            width: 4px;
+            height: 50px;
+            background-color: red;
+            position: absolute;
+            bottom: 12px; /* Start from center of circle */
+            left: 10px;   /* Center horizontally */
+            transform-origin: bottom center;
+            z-index: 1;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            border-radius: 2px;
+        }
+    </style>
 </head>
 <body>
 
-<header><div class="hardware-led"></div>CarpFisher IQ</header>
-
-<div id="map"></div>
-
-<div class="toolbar glass-panel">
-    <div class="tool-row">
-        <button onclick="beginSpot()">📍 Add Swim</button>
-        <button onclick="openSession()" class="success">🎣 New Session</button>
+    <div id="start-screen">
+        <h2>Compass & GPS Map</h2>
+        <p>This app requires access to your location and device orientation. iOS users must tap the button below to grant permission.</p>
+        <button id="start-btn">Start Tracking</button>
     </div>
-    <div class="map-selector">
-        <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
-        <button id="btn-sat" class="map-btn" onclick="switchBaseLayer('sat')">Sat</button>
-        <button id="btn-cyber" class="map-btn" onclick="switchBaseLayer('cyber')">Cyber</button>
-    </div>
-</div>
 
-<div id="active"></div>
+    <div id="map"></div>
 
-<div class="scroll-container">
-    <div class="card glass-panel">
-        <h3>Telemetry Logs & Sessions</h3>
-        <div id="history"></div>
-    </div>
-</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<div class="modal" id="sessionModal"><div class="box">
-    <h3>Initialize New Session</h3>
-    <input id="sessionName" placeholder="Session Identifier Name">
-    <select id="spotSelect"></select>
-    <button onclick="createSession()" class="success" style="width: 100%;">Start Session</button>
-    <button class="secondary" onclick="closeModal('sessionModal')" style="margin-top:6px; width: 100%;">Abort</button>
-</div></div>
-
-<div class="modal" id="fishModal"><div class="box">
-    <h3>Log Specimen Catch</h3>
-    <input id="species" placeholder="Fish Species">
-    <input id="weight" placeholder="Weight (kg)">
-    <input id="length" placeholder="Length (cm)">
-    <input id="bait" placeholder="Rig / Bait details">
-    <button onclick="saveFish()" style="width: 100%;">Record Entry</button>
-    <button class="secondary" onclick="closeModal('fishModal')" style="margin-top:6px; width: 100%;">Cancel</button>
-</div></div>
-
-<div class="modal" id="textModal"><div class="box">
-    <h3 id="textTitle">Metadata Prompt</h3>
-    <input id="textInput">
-    <button onclick="finishPlacement()" style="width: 100%;">Save Coordinates</button>
-    <button class="secondary" onclick="closeTextModal()" style="margin-top:6px; width: 100%;">Cancel</button>
-</div></div>
-
-<div class="modal" id="confirmEndModal"><div class="box" style="border-color: var(--accent-red);">
-    <h3>Finish Session?</h3>
-    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4; text-align: center;">
-        Are you sure you want to shut down telemetry logs and archive this active angling session?
-    </p>
-    <div style="display: flex; gap: 10px;">
-        <button class="secondary" onclick="closeModal('confirmEndModal')">NO</button>
-        <button class="danger" onclick="confirmEndSession()">YES</button>
-    </div>
-</div></div>
-
-<div id="placeMode">
-    <div id="placeMap"></div>
-    <div id="cross">+</div>
-    <div id="hud"><span id="hudText">Calibrating Positioning Radar...</span></div>
-    <div id="placeBtns">
-        <button class="danger" onclick="cancelPlace()">Cancel</button>
-        <button onclick="acceptPlace()" class="success">Confirm Location</button>
-    </div>
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
-const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
-
-function createTileLayer(key) {
-    if (key === 'topo') return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-    if (key === 'sat') return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-    if (key === 'cyber') return L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
-}
-
-let currentEngine = 'topo';
-let mainTile = createTileLayer(currentEngine);
-const map=L.map('map', { zoomControl: false, layers: [mainTile] }).setView([50.45,30.52],12);
-
-function switchBaseLayer(key) {
-    map.removeLayer(mainTile);
-    mainTile = createTileLayer(key);
-    mainTile.addTo(map);
-    currentEngine = key;
-    
-    document.querySelectorAll('.map-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`btn-${key}`).classList.add('active');
-}
-
-let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
-let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
-
-/* --- OPTIMIZED HARDWARE SENSOR & GPS LOGIC --- */
-let sensorsHooked = false;
-let lastHeading = null;
-const SMOOTHING_FACTOR = 0.15; // Slightly heavier smoothing to reduce visual jitter
-
-// Flags to decouple sensors from rendering
-let headingDirty = false;
-let gpsDirty = false;
-let gpsMovedSufficiently = false; // Used to limit heavy redraws
-
-// 1. Initialize GPS & Render Loop on load
-window.addEventListener('load', () => {
-    startGPS();
-    requestAnimationFrame(hardwareRenderLoop); // Start the high-performance graphics loop
-});
-
-// 2. Universal Stealth Trigger for Permissions
-document.body.addEventListener('click', async () => {
-    if (sensorsHooked) return;
-    sensorsHooked = true;
-
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission === 'granted') {
-                window.addEventListener('deviceorientation', handleCompass, true);
-            }
-        } catch (error) { console.error('Permission error:', error); }
-    } else {
-        window.addEventListener('deviceorientationabsolute', handleCompass, true);
-        window.addEventListener('deviceorientation', handleCompass, true);
-    }
-}, { once: true });
-
-function handleCompass(e) {
-    let heading = null;
-    
-    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-        heading = e.webkitCompassHeading; 
-    } else if (e.alpha !== null) {
-        if (e.type === 'deviceorientationabsolute' || e.absolute === true) {
-            heading = 360 - e.alpha; 
-        }
-    }
-    
-    if (heading !== null) {
-        if (lastHeading === null) { lastHeading = heading; } 
-        else {
-            let diff = heading - lastHeading;
-            if (diff > 180) diff -= 360;
-            if (diff < -180) diff += 360;
-            heading = lastHeading + diff * SMOOTHING_FACTOR;
-        }
-        myHeading = (heading + 360) % 360;
-        lastHeading = myHeading;
+    <script>
+        // 1. Initialize Map
+        const map = L.map('map').setView([0, 0], 2); // Default view before GPS
         
-        // Flag that we need to draw a new line, but DON'T draw it yet!
-        headingDirty = true; 
-    }
-}
+        // Load OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
-function startGPS() {
-    if ("geolocation" in navigator) {
-        navigator.geolocation.watchPosition(p => {
-            myPos = [p.coords.latitude, p.coords.longitude];
-            
-            if (!sensorsHooked && p.coords.heading !== null && !isNaN(p.coords.heading)) {
-                myHeading = p.coords.heading;
-                headingDirty = true;
-            }
-            
-            // Flag that GPS updated
-            gpsDirty = true; 
-            gpsMovedSufficiently = true;
-        }, err => console.log("GPS Telemetry error: " + err.message), {
-            enableHighAccuracy: true,
-            maximumAge: 0,
-            timeout: 5000
+        let userMarker = null;
+        let headingElement = null;
+        let isTracking = false;
+
+        // Custom HTML Icon for Leaflet
+        const userIcon = L.divIcon({
+            className: 'custom-user-icon',
+            html: `
+                <div class="user-marker-container" id="marker-rotation-wrapper">
+                    <div class="heading-line"></div>
+                    <div class="gps-circle"></div>
+                </div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12] // Center the icon exactly on the GPS coordinate
         });
-    }
-}
 
-// 3. High-Performance Render Loop
-// This runs exactly at your screen's refresh rate (e.g., 60fps), stopping DOM overload.
-function hardwareRenderLoop() {
-    let needsVectorUpdate = false;
-
-    // Handle GPS position updates smoothly
-    if (gpsDirty && myPos) {
-        const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
-        const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
-        
-        if (!me) { 
-            me = L.marker(myPos,{icon}).addTo(map); 
-            map.setView(myPos,16); 
-        } else {
-            me.setLatLng(myPos); // Efficiently move the dot without rebuilding the map
-        }
-        gpsDirty = false;
-        needsVectorUpdate = true;
-    }
-
-    // Handle Compass updates smoothly
-    if (headingDirty) {
-        needsVectorUpdate = true;
-        headingDirty = false;
-    }
-
-    // Update the blue aiming laser efficiently
-    if (needsVectorUpdate && myPos) {
-        updateAzimuthVectors(); 
-    }
-
-    // ONLY rebuild the heavy session data if the phone physically moved
-    // We strictly prevent compass twitches from triggering map rebuilds
-    if (gpsMovedSufficiently) {
-        redraw();
-        gpsMovedSufficiently = false;
-    }
-
-    // Queue the next frame
-    requestAnimationFrame(hardwareRenderLoop);
-}
-/* --- END OPTIMIZED LOGIC --- */
-
-function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
-    const R = 6378137;
-    const d = distanceMeters;
-    const brng = (heading * Math.PI) / 180;
-    const lat1 = (lat * Math.PI) / 180;
-    const lon1 = (lng * Math.PI) / 180;
-
-    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d / R) + Math.cos(lat1) * Math.sin(d / R) * Math.cos(brng));
-    const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1), Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2));
-
-    return [(lat2 * 180) / Math.PI, (lon2 * 180) / Math.PI];
-}
-
-function updateAzimuthVectors() {
-    if (!myPos) return;
-    const endPoint = calculateEndpoint(myPos[0], myPos[1], myHeading);
-
-    if (!azimuthLine) {
-        azimuthLine = L.polyline([myPos, endPoint], { color: 'rgba(56, 189, 248, 0.75)', weight: 3, className: 'animated-path' }).addTo(map);
-    } else {
-        azimuthLine.setLatLngs([myPos, endPoint]);
-    }
-
-    if (placeMap) {
-        if (!placeMe) {
-            const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
-            const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30, 30], iconAnchor: [15, 15] });
-            placeMe = L.marker(myPos, {icon}).addTo(placeMap);
-        } else {
-            placeMe.setLatLng(myPos);
-        }
-
-        if (!placeAzimuthLine) {
-            placeAzimuthLine = L.polyline([myPos, endPoint], { color: 'rgba(56, 189, 248, 0.75)', weight: 3, className: 'animated-path' }).addTo(placeMap);
-        } else {
-            placeAzimuthLine.setLatLngs([myPos, endPoint]);
-        }
-    }
-}
-
-function activeSession(){ return db.sessions.find(x=>x.status==="active"); }
-function getCalculatedAnchor(sess) {
-   if (sess && sess.customBase) return [sess.customBase.lat, sess.customBase.lng];
-   return myPos;
-}
-
-function getSessionDuration(s) {
-    let start = s.startTimestamp;
-    let end = s.endTimestamp || (s.status === 'active' ? Date.now() : null);
-    if (!start) return "N/A";
-    let diffMs = end - start;
-    if (diffMs < 0) diffMs = 0;
-    let diffMins = Math.floor(diffMs / 60000);
-    let hrs = Math.floor(diffMins / 60);
-    let mins = diffMins % 60;
-    if (hrs > 0) return `${hrs}h ${mins}m`;
-    return `${mins}m`;
-}
-
-function renderTimelineChart(sessionId, fishArray) {
-    const canvas = document.getElementById(`chart-${sessionId}`);
-    if (!canvas) return;
-
-    const hourlyData = Array(24).fill(0);
-    fishArray.forEach(f => {
-        if (f.time) {
-            const matches = f.time.match(/^(\d+)/);
-            if (matches) {
-                let hr = parseInt(matches[1], 10);
-                if (f.time.toLowerCase().includes('pm') && hr < 12) hr += 12;
-                if (f.time.toLowerCase().includes('am') && hr === 12) hr = 0;
-                if (hr >= 0 && hr < 24) hourlyData[hr]++;
-            }
-        }
-    });
-
-    const labels = Array.from({length: 24}, (_, i) => `${String(i).padStart(2, '0')}:00`);
-
-    new Chart(canvas, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Catches / Hour',
-                data: hourlyData,
-                borderColor: '#00f0ff',
-                backgroundColor: 'rgba(0, 240, 255, 0.08)',
-                borderWidth: 2,
-                pointBackgroundColor: '#00ff87',
-                pointRadius: 3,
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                    ticks: { color: '#9ca3af', font: { size: 8 }, maxTicksLimit: 8 }
-                },
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.04)' },
-                    ticks: { color: '#9ca3af', font: { size: 8 }, stepSize: 1, beginAtZero: true }
+        // 2. Main Start Function
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            // Request Device Orientation Permission (specifically for iOS 13+)
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        alert('Compass permission denied.');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Permission error:', error);
                 }
             }
+
+            // Hide start screen
+            document.getElementById('start-screen').style.display = 'none';
+            
+            startGPS();
+            startCompass();
+        });
+
+        // 3. GPS Tracking
+        function startGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+
+                        if (!userMarker) {
+                            // First time getting location: create marker and zoom in
+                            userMarker = L.marker([lat, lng], { icon: userIcon }).addTo(map);
+                            map.setView([lat, lng], 18);
+                            // Grab the DOM element for rotation after it's added to map
+                            headingElement = document.getElementById('marker-rotation-wrapper');
+                        } else {
+                            // Update existing marker position
+                            userMarker.setLatLng([lat, lng]);
+                        }
+                    },
+                    (error) => {
+                        alert("Error getting location: " + error.message);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            } else {
+                alert("Geolocation is not supported by your browser.");
+            }
         }
-    });
-}
 
-function showModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function closeTextModal() { closeModal('textModal'); cancelPlace(); }
-
-let layers=[];
-let placeLayers=[];
-
-function redraw(){
- layers.forEach(x=>map.removeLayer(x)); layers=[];
- placeLayers.forEach(x=>{ if(placeMap) placeMap.removeLayer(x); }); placeLayers=[];
-
- const drawToBoth = (element) => {
-    layers.push(element.addTo(map));
-    if(placeMap) {
-       let clone;
-       if(element instanceof L.Marker) {
-          clone = L.marker(element.getLatLng(), {icon: element.options.icon});
-          if(element.getPopup()) clone.bindPopup(element.getPopup().getContent());
-       } else if(element instanceof L.CircleMarker) {
-          clone = L.circleMarker(element.getLatLng(), element.options);
-          if(element.getPopup()) clone.bindPopup(element.getPopup().getContent());
-       } else if(element instanceof L.Polyline) {
-          clone = L.polyline(element.getLatLngs(), element.options);
-       }
-       if(clone) placeLayers.push(clone.addTo(placeMap));
-    }
- };
-
- db.spots.forEach(s=>{
-    drawToBoth(L.marker([s.lat,s.lng]).bindPopup("📍 "+s.name));
- });
-
- db.sessions.forEach(sess=>{
-    if(sess.status !== "active" && sess.id !== previewSessionId) return;
-    const anchor = getCalculatedAnchor(sess);
-
-    if(sess.customBase){
-       drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓ Manual Base Anchor point"));
-    }
-    sess.baits.forEach((b, index)=>{
-       let iconBait = L.divIcon({ className: '', html: '<div class="pulsing-marker-bait"></div>', iconSize: [12,12], iconAnchor: [6,6] });
-       let baitMarker = L.marker([b.lat,b.lng], {icon: iconBait});
-       let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">Purge Object</button></div>`;
-       baitMarker.bindPopup(popupContent);
-       drawToBoth(baitMarker);
-       if(anchor) drawToBoth(L.polyline([anchor, [b.lat, b.lng]], {color:"#ff00ff", weight: 2, className: 'animated-path'}));
-    });
-    sess.casts.forEach((c, index)=>{
-       let iconCast = L.divIcon({ className: '', html: '<div class="pulsing-marker-cast"></div>', iconSize: [12,12], iconAnchor: [6,6] });
-       let castMarker = L.marker([c.lat,c.lng], {icon: iconCast});
-       let popupContent = `<div>🚀 ${c.desc}<br>${c.distance}m from base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">Purge Object</button></div>`;
-       castMarker.bindPopup(popupContent);
-       drawToBoth(castMarker);
-       if(anchor) drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2, className: 'animated-path'}));
-    });
- });
-}
-
-function removeItem(type, sessionId, index) {
-  const sess = db.sessions.find(x => x.id === sessionId);
-  if(sess && sess[type]) {
-     sess[type].splice(index, 1);
-     persist(); redraw(); render();
-  }
-}
-
-function previewSession(sessionId) {
-  if(previewSessionId === sessionId) { previewSessionId = null; } 
-  else {
-     previewSessionId = sessionId;
-     const sess = db.sessions.find(x => x.id === sessionId);
-     if(sess) {
-        let targetLatLng = null;
-        if(sess.customBase) targetLatLng = [sess.customBase.lat, sess.customBase.lng];
-        else {
-           const spotObj = db.spots.find(x => x.id === sess.spotId);
-           if(spotObj) targetLatLng = [spotObj.lat, spotObj.lng];
+        // 4. Compass Tracking (Handling iOS vs Android)
+        function startCompass() {
+            // Standard Android devices usually provide Earth-coordinate heading via 'deviceorientationabsolute'
+            if ('ondeviceorientationabsolute' in window) {
+                window.addEventListener('deviceorientationabsolute', handleOrientation);
+            } 
+            // Fallback for iOS and other browsers
+            else {
+                window.addEventListener('deviceorientation', handleOrientation);
+            }
         }
-        if(targetLatLng) map.setView(targetLatLng, 16);
-     }
-  }
-  redraw(); render();
-}
 
-function getFormattedDate(d) {
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
+        function handleOrientation(event) {
+            if (!headingElement) return;
 
-function render(){
- const a=activeSession();
- if(a) { document.body.classList.add("session-active"); } else { document.body.classList.remove("session-active"); }
+            let heading = 0;
 
- document.getElementById("active").innerHTML = a ? `
- <div class="glass-panel active-session-card">
- <div style="display:flex; justify-content:space-between; align-items:center;">
-   <b style="color:var(--accent-green); font-size:0.85rem;">CONSOLE: ${a.name}</b>
-   <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
- </div>
- <div style="margin-top:4px; font-size:0.75rem; color:var(--text-muted);">
-   Swim: <b>${a.spotName}</b> | Array: ${a.customBase ? 'Anchor Base' : 'GPS Mobile'}
- </div>
- <div class="metrics-row">
-    <div class="metric-box"><div class="metric-val">${a.fish.length}</div><div class="metric-lbl">Catches</div></div>
-    <div class="metric-box"><div class="metric-val">${a.baits.length}</div><div class="metric-lbl">Baits Set</div></div>
-    <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
- </div>
- <div class="action-grid">
-   <button onclick="startBase()">⚓ Anchor</button>
-   <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
-   <button onclick="startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
- </div>
- <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
- </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
+            // iOS absolute compass heading
+            if (event.webkitCompassHeading) {
+                heading = event.webkitCompassHeading;
+            } 
+            // Android absolute compass heading
+            else if (event.alpha !== null) {
+                // event.alpha usually represents Z-axis rotation. 
+                // To convert standard alpha to compass heading:
+                heading = 360 - event.alpha; 
+            }
 
- let h="";
- const chartCallbacks = [];
-
- [...db.sessions].reverse().forEach(s=>{
-   let isPreviewing = previewSessionId === s.id;
-   let statusHtml = s.status === "active" ? `<span style="color:var(--accent-green)" class="history-status">● LIVE</span>` : `<span style="color:var(--text-muted)" class="history-status">🏁 ARCHIVED</span>`;
-   
-   let duration = getSessionDuration(s);
-   let timeline = `${s.startDate} @ ${s.startTime}`;
-   if (s.endDate && s.endTime) {
-       timeline += ` → ${s.endDate} @ ${s.endTime}`;
-   } else if (s.status === 'active') {
-       timeline += ` → Running`;
-   }
-   
-   h+=`
-   <div class="history-item ${isPreviewing ? 'previewing' : ''}">
-       <div class="history-header">
-           <div class="history-title">${s.name}</div>
-           <div>${statusHtml}</div>
-       </div>
-       <div class="history-meta-grid">
-           <div class="history-meta-item" style="grid-column: span 2;">
-               <div class="history-meta-label">Deployment Timeline</div>
-               <div class="history-meta-value">${timeline}</div>
-           </div>
-           <div class="history-meta-item">
-               <div class="history-meta-label">Swim Location</div>
-               <div class="history-meta-value">📍 ${s.spotName}</div>
-           </div>
-           <div class="history-meta-item">
-               <div class="history-meta-label">Session Duration</div>
-               <div class="history-meta-value">⏱️ ${duration}</div>
-           </div>
-       </div>
-       
-       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-           <button class="preview-btn ${isPreviewing?'active':''}" style="margin-top: 0; padding: 6px 12px; font-size: 0.65rem;" onclick="previewSession('${s.id}')">
-               ${isPreviewing ? '🔒 Close Matrix' : '👁️ View Matrix'}
-           </button>
-       </div>`;
-
-   if(s.fish && s.fish.length > 0){
-      h+=`
-      <details class="history-details" id="details-${s.id}">
-          <summary><div>🐟 Specimen Records (${s.fish.length})</div> <span style="font-size: 0.6rem; opacity: 0.6;">▼</span></summary>
-          
-          <div class="chart-wrapper">
-              <div style="font-size:0.55rem; text-transform:uppercase; color:var(--accent-blue); margin-bottom:4px; font-weight:700; letter-spacing:0.5px;">Feeding Window Index</div>
-              <div style="height: 100px; position: relative;">
-                  <canvas id="chart-${s.id}"></canvas>
-              </div>
-          </div>
-
-          <div class="catch-list">`;
-      s.fish.forEach(f=>{
-          h+=`
-              <div class="catch-item">
-                  <div style="display:flex; justify-content:space-between; font-weight:700; color:#fff;">
-                      <span>🐟 ${f.species}</span>
-                      <span style="color: var(--accent-orange);">${f.weight}kg / ${f.length}cm</span>
-                  </div>
-                  <div style="color:var(--accent-blue); font-size:0.65rem; margin-top: 2px;">
-                      Setup: ${f.bait||'Unspecified'}
-                      <span style="float:right; color:var(--text-muted); font-weight:normal;">⏱️ ${f.time || ''}</span>
-                  </div>
-              </div>`;
-      });
-      h+=`</div></details>`;
-
-      chartCallbacks.push(() => renderTimelineChart(s.id, s.fish));
-   } else {
-      h+=`
-      <div style="font-size: 0.65rem; color: var(--text-muted); text-align: center; padding: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; margin-top: 8px; border: 1px dashed rgba(255,255,255,0.04);">
-          No specimen logs indexed.
-      </div>`;
-   }
-   h+="</div>";
- });
- document.getElementById("history").innerHTML=h;
-
- chartCallbacks.forEach(cb => cb());
- setTimeout(() => { map.invalidateSize(); }, 50);
-}
-
-function openSession(){
- if(!db.spots.length) return alert("System requires configured Swim location vectors before layout deployment.");
- const spotSelect = document.getElementById("spotSelect");
- spotSelect.innerHTML="";
- db.spots.forEach(s=>spotSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
- showModal("sessionModal");
-}
-
-function createSession(){
- const spotSelect = document.getElementById("spotSelect");
- const sessionName = document.getElementById("sessionName");
- const sp=db.spots.find(x=>x.id===spotSelect.value);
- if(!sp) return;
- 
- const dateObj = new Date();
- const nowTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
- const nowDate = getFormattedDate(dateObj);
-
- db.sessions.push({
-   id:crypto.randomUUID(),
-   name:sessionName.value||"RUN-"+(db.sessions.length+1),
-   spotName:sp.name,
-   spotId:sp.id,
-   status:"active",
-   startDate: nowDate,
-   startTime: nowTime,
-   startTimestamp: Date.now(),
-   endDate: null,
-   endTime: null,
-   endTimestamp: null,
-   customBase:null,
-   fish:[],
-   baits:[],
-   casts:[]
- });
- closeModal("sessionModal");
- sessionName.value = "";
- previewSessionId = null; 
- persist(); redraw(); render();
-}
-
-function openFish(){ showModal("fishModal"); }
-function saveFish(){
- const s=activeSession();
- if(!s) return;
- const species = document.getElementById("species");
- const weight = document.getElementById("weight");
- const length = document.getElementById("length");
- const bait = document.getElementById("bait");
- const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
- s.fish.push({
-   species:species.value||"Standard Carp",
-   weight:weight.value||"0",
-   length:length.value||"0",
-   bait:bait.value||"Standard Rig",
-   time: now
- });
- closeModal("fishModal");
- species.value=weight.value=length.value=bait.value="";
- persist(); redraw(); render();
-}
-
-let mode=null, distance=0, targetCoords=null;
-function beginSpot(){ mode="spot"; openPlace(); }
-function startBase(){ mode="base"; openPlace(); }
-
-function checkAndLockAutoBase(session) {
-    if (!session.customBase && myPos) {
-        session.customBase = { lat: myPos[0], lng: myPos[1] };
-    }
-}
-
-function startBait(){ 
-    const s=activeSession(); 
-    if(!s) return; 
-    checkAndLockAutoBase(s);
-    mode="bait"; 
-    openPlace(); 
-}
-
-function startCast(){ 
-    const s=activeSession(); 
-    if(!s) return; 
-    checkAndLockAutoBase(s);
-    mode="cast"; 
-    openPlace(); 
-}
-
-function openPlace() {
- document.getElementById("placeMode").classList.add("open");
- if(!placeMap){
-   placeMap=L.map('placeMap', { zoomControl: false }).setView(map.getCenter(),map.getZoom());
-   placeTile = createTileLayer(currentEngine).addTo(placeMap);
-   placeMap.on('move',updateHud);
- } else {
-   if(placeTile) placeMap.removeLayer(placeTile);
-   placeTile = createTileLayer(currentEngine).addTo(placeMap);
-   placeMap.setView(map.getCenter(),map.getZoom());
- }
- updateAzimuthVectors();
- setTimeout(()=>{ 
-   placeMap.invalidateSize(); 
-   placeMap.setView(map.getCenter(), map.getZoom(), {animate: false});
-   updateHud(); 
- },250);
-}
-
-function updateHud(){
- const hudText = document.getElementById("hudText");
- if(mode==="spot") hudText.innerText="Align crosshair over desired coordinates to log geographical spot";
- else if(mode==="base") hudText.innerText="Align crosshair to set alternative static array baseline anchor";
- else{
-   const c=placeMap.getCenter();
-   const anchor = getCalculatedAnchor(activeSession());
-   if (anchor) {
-      distance=Math.round(placeMap.distance(anchor,[c.lat,c.lng]));
-      hudText.innerText = (activeSession()?.customBase ? "Range Matrix from Anchor: " : "Range Matrix from Mobile Unit: ") + distance + "m";
-   } else {
-      distance = 0;
-      hudText.innerText="Calculating telemetry coordinates...";
-   }
- }
-}
-
-function cancelPlace(){ document.getElementById("placeMode").classList.remove("open"); }
-
-function acceptPlace() {
- targetCoords = placeMap.getCenter(); 
- const textTitle = document.getElementById("textTitle");
- const textInput = document.getElementById("textInput");
-
- cancelPlace();
-
- if(mode==="spot"){
-    textTitle.innerText="Swim Description";
-    textInput.value="";
-    showModal("textModal");
-    return;
- }
- if(mode==="base"){
-    const s = activeSession();
-    if(s) s.customBase={lat:targetCoords.lat,lng:targetCoords.lng};
-    persist(); redraw(); render();
-    return;
- }
- textTitle.innerText = mode==="bait" ? "Bait Configuration Payload" : "Cast Flight Path Description";
- textInput.value="";
- showModal("textModal");
-}
-
-function finishPlacement() {
- if (!targetCoords) return;
- const s=activeSession();
- const textInput = document.getElementById("textInput");
-
- if(mode==="spot"){
-    db.spots.push({id:crypto.randomUUID(),name:textInput.value||"Unnamed Swim",lat:targetCoords.lat,lng:targetCoords.lng});
-    persist(); redraw();
- }
- if(mode==="bait" && s){
-    s.baits.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Bait Node"});
-    persist(); redraw(); render();
- }
- if(mode==="cast" && s){
-    s.casts.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Strike Vector"});
-    persist(); redraw(); render();
- }
- closeModal("textModal");
- targetCoords = null;
-}
-
-function endSession(){
- const s=activeSession();
- if(!s) return;
- showModal("confirmEndModal");
-}
-
-function confirmEndSession() {
- const s=activeSession();
- if(!s) return;
- 
- const dateObj = new Date();
- s.status="completed";
- s.endTime = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
- s.endDate = getFormattedDate(dateObj);
- s.endTimestamp = Date.now();
- 
- closeModal("confirmEndModal");
- persist(); redraw(); render();
-}
-
-redraw(); render();
-</script>
+            // Apply rotation to the wrapper element using CSS
+            headingElement.style.transform = `rotate(${heading}deg)`;
+        }
+    </script>
 </body>
 </html>
