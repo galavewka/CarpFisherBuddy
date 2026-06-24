@@ -1121,7 +1121,7 @@ function render(){
    <button onclick="startCast()" class="danger">🎣 Log Cast</button>
  </div>
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">FINISH SESSION</button>
- </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
+ </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Session Started.</div>`;
 
  let h="";
  const chartCallbacks = [];
@@ -1387,14 +1387,14 @@ function openPlace() {
 
 function updateHud(){
  const hudText = document.getElementById("hudText");
- if(mode==="spot") hudText.innerText="Align crosshair over desired coordinates to log geographical spot";
- else if(mode==="base") hudText.innerText="Align crosshair to set alternative static array baseline anchor";
+ if(mode==="spot") hudText.innerText="Align crosshair over desired coordinates to a new swim";
+ else if(mode==="base") hudText.innerText="Align crosshair to set your position manually";
  else{
    const c=placeMap.getCenter();
    const anchor = getCalculatedAnchor(activeSession());
    if (anchor) {
       distance=Math.round(placeMap.distance(anchor,[c.lat,c.lng]));
-      hudText.innerText = (activeSession()?.customBase ? "Range Matrix from Anchor: " : "Range Matrix from Mobile Unit: ") + distance + "m";
+      hudText.innerText = (activeSession()?.customBase ? "Range: " : "Range: ") + distance + "m";
    } else {
       distance = 0;
       hudText.innerText="Calculating telemetry coordinates...";
