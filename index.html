@@ -311,13 +311,114 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 
 .leaflet-control-container { display: none !important; }
+
+.menu-btn{
+position:absolute;
+left:12px;
+top:50%;
+transform:translateY(-50%);
+z-index:15000;
+font-size:28px;
+cursor:pointer;
+color:var(--accent-blue);
+font-weight:900;
+}
+
+.side-menu{
+position:fixed;
+left:-280px;
+top:0;
+width:260px;
+height:100vh;
+background:rgba(4,7,14,.98);
+backdrop-filter:blur(20px);
+border-right:1px solid rgba(0,240,255,.3);
+z-index:25000;
+transition:.3s;
+padding-top:70px;
+box-sizing:border-box;
+}
+
+.side-menu.open{left:0;}
+
+.side-menu-item{
+padding:18px 20px;
+border-bottom:1px solid rgba(255,255,255,.05);
+font-weight:800;
+letter-spacing:1px;
+cursor:pointer;
+}
+
+.side-menu-item:hover{
+background:rgba(0,240,255,.1);
+}
+
+.page-placeholder{
+display:none;
+padding:20px;
+margin:12px;
+border-radius:12px;
+}
+
+.page-placeholder.active{
+display:block;
+}
+
+
+#menuOverlay{
+position:fixed;
+inset:0;
+backdrop-filter:blur(8px);
+-webkit-backdrop-filter:blur(8px);
+background:rgba(0,0,0,.35);
+opacity:0;
+pointer-events:none;
+transition:.3s;
+z-index:24999;
+}
+#menuOverlay.open{
+opacity:1;
+pointer-events:auto;
+}
+
+
+#appContent{
+transition:.3s;
+}
+body.menu-open #appContent{
+filter:blur(10px);
+transform:scale(.98);
+pointer-events:none;
+}
+#sideMenu{
+z-index:26000 !important;
+}
+
 </style>
 </head>
 <body>
+<div id="menuOverlay" onclick="toggleMenu()"></div>
 
-<header><div class="hardware-led"></div>CarpFisher IQ</header>
 
+<div id="appContent">
+<header>
+<div class="menu-btn" onclick="toggleMenu()">☰</div>
+<div class="hardware-led"></div>CarpFisher IQ
+</header>
+
+<div id="sideMenu" class="side-menu">
+<div style="position:absolute;top:16px;right:16px;font-size:28px;cursor:pointer;color:var(--accent-blue);font-weight:900;" onclick="toggleMenu()">✕</div>
+<div class="side-menu-item" onclick="showPage('session')">🎣 SESSION</div>
+<div class="side-menu-item" onclick="showPage('statistics')">📊 STATISTICS</div>
+<div class="side-menu-item" onclick="showPage('swims')">📍 SWIMS</div>
+<div class="side-menu-item" onclick="showPage('about')">ℹ️ ABOUT</div>
+</div>
+
+
+
+<div id="sessionPage">
 <div id="map"></div>
+
 
 <div class="toolbar glass-panel">
     <div class="tool-row">
@@ -396,6 +497,23 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
     </div>
 </div>
 
+<div id="statisticsPage" class="glass-panel page-placeholder">
+<h2>STATISTICS</h2>
+<p>Statistics module will be added in upcoming updates.</p>
+</div>
+
+<div id="swimsPage" class="glass-panel page-placeholder">
+<h2>SWIMS</h2>
+<p>Swims management module will be added in upcoming updates.</p>
+</div>
+
+<div id="aboutPage" class="glass-panel page-placeholder">
+<h2>ABOUT</h2>
+<p>Additional information and app details will be added in upcoming updates.</p>
+</div>
+
+</div>
+
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -454,7 +572,7 @@ async function checkAndroidHardware() {
                 window.removeEventListener('deviceorientationabsolute', testEvent);
                 resolve(false);
             }
-        }, 1500);
+        }, 10000);
     });
 }
 
@@ -500,6 +618,38 @@ let gpsMovedSufficiently = false;
 window.addEventListener('load', () => {
     startGPS();
     requestAnimationFrame(hardwareRenderLoop);
+});
+
+async function initSensorsAutomatically() {
+    if (sensorsHooked) return;
+    sensorsHooked = true;
+
+    const led = document.querySelector('.hardware-led');
+    if (led) led.style.backgroundColor = 'var(--accent-orange)';
+
+    hasHardwareCompass = await checkAndroidHardware();
+
+    if (hasHardwareCompass) {
+        startAndroidCompass();
+
+        window.addEventListener('deviceorientationabsolute', handleCompass, true);
+        window.addEventListener('deviceorientation', handleCompass, true);
+
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                await DeviceOrientationEvent.requestPermission();
+            } catch(e){}
+        }
+    } else {
+        if (led) led.style.backgroundColor = 'var(--accent-red)';
+        showModal('noMagnetometerModal');
+        headingDirty = false;
+    }
+}
+
+window.addEventListener('load', () => {
+    setTimeout(initSensorsAutomatically, 500);
 });
 
 document.body.addEventListener('click', async () => {
@@ -804,7 +954,39 @@ function removeItem(type, sessionId, index) {
   const sess = db.sessions.find(x => x.id === sessionId);
   if(sess && sess[type]) {
      sess[type].splice(index, 1);
-     persist(); redraw(); render();
+     persist(); 
+function toggleMenu(){
+document.getElementById('sideMenu').classList.toggle('open');
+document.getElementById('menuOverlay').classList.toggle('open');
+document.body.classList.toggle('menu-open');
+}
+
+function showPage(page){
+document.getElementById('sideMenu').classList.remove('open');
+document.getElementById('menuOverlay').classList.remove('open');
+document.body.classList.remove('menu-open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
   }
 }
 
@@ -823,7 +1005,35 @@ function previewSession(sessionId) {
         if(targetLatLng) map.setView(targetLatLng, 16);
      }
   }
-  redraw(); render();
+  
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
 }
 
 function getFormattedDate(d) {
@@ -980,7 +1190,35 @@ function createSession(){
  closeModal("sessionModal");
  sessionName.value = "";
  previewSessionId = null; 
- persist(); redraw(); render();
+ persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
 }
 
 function openFish(){ showModal("fishModal"); }
@@ -1002,7 +1240,35 @@ function saveFish(){
  });
  closeModal("fishModal");
  species.value=weight.value=length.value=bait.value="";
- persist(); redraw(); render();
+ persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
 }
 
 let mode=null, distance=0, targetCoords=null;
@@ -1085,7 +1351,35 @@ function acceptPlace() {
  if(mode==="base"){
     const s = activeSession();
     if(s) s.customBase={lat:targetCoords.lat,lng:targetCoords.lng};
-    persist(); redraw(); render();
+    persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
     return;
  }
  textTitle.innerText = mode==="bait" ? "Bait Configuration Payload" : "Cast Flight Path Description";
@@ -1104,11 +1398,67 @@ function finishPlacement() {
  }
  if(mode==="bait" && s){
     s.baits.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Bait Node"});
-    persist(); redraw(); render();
+    persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
  }
  if(mode==="cast" && s){
     s.casts.push({lat:targetCoords.lat,lng:targetCoords.lng,distance:distance,desc:textInput.value||"Strike Vector"});
-    persist(); redraw(); render();
+    persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
  }
  closeModal("textModal");
  targetCoords = null;
@@ -1131,7 +1481,63 @@ function confirmEndSession() {
  s.endTimestamp = Date.now();
  
  closeModal("confirmEndModal");
- persist(); redraw(); render();
+ persist(); 
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
+}
+
+redraw(); render();
+}
+
+
+function toggleMenu(){
+ document.getElementById('sideMenu').classList.toggle('open');
+}
+
+function showPage(page){
+ document.getElementById('sideMenu').classList.remove('open');
+
+ document.getElementById('sessionPage').style.display='none';
+ document.getElementById('statisticsPage').classList.remove('active');
+ document.getElementById('swimsPage').classList.remove('active');
+ document.getElementById('aboutPage').classList.remove('active');
+
+ if(page==='session'){
+   document.getElementById('sessionPage').style.display='block';
+   setTimeout(()=>map.invalidateSize(),200);
+ }
+ else if(page==='statistics'){
+   document.getElementById('statisticsPage').classList.add('active');
+ }
+ else if(page==='swims'){
+   document.getElementById('swimsPage').classList.add('active');
+ }
+ else if(page==='about'){
+   document.getElementById('aboutPage').classList.add('active');
+ }
 }
 
 redraw(); render();
