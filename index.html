@@ -376,6 +376,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
     </div>
 </div></div>
 
+
+<div class="modal" id="noMagnetometerModal"><div class="box" style="border-color: var(--accent-orange);">
+    <h3 style="color: var(--accent-orange);">Sensor Warning</h3>
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4; text-align: center;">
+        Your Android phone does not have a hardware magnetometer (compass). The directional azimuth line has been disabled.
+    </p>
+    <button class="warning" onclick="closeModal('noMagnetometerModal')" style="width: 100%;">Acknowledge</button>
+</div></div>
+
+
 <div id="placeMode">
     <div id="placeMap"></div>
     <div id="cross">+</div>
@@ -415,6 +425,68 @@ function switchBaseLayer(key) {
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
 
+
+/* --- NEW FEATURES: Magnetometer Check & Calibration Gate --- */
+let compassReady = false;
+
+// Hardware Check: Modern API + Fallback Timeout
+async function checkAndroidHardware() {
+    return new Promise((resolve) => {
+        if ('Magnetometer' in window) {
+            try {
+                const mag = new Magnetometer({ frequency: 10 });
+                mag.addEventListener('error', event => { if (event.error.name === 'NotReadableError') resolve(false); });
+                mag.addEventListener('reading', () => { mag.stop(); resolve(true); });
+                mag.start(); return;
+            } catch (err) {}
+        }
+        let hardwareConfirmed = false;
+        function testEvent(e) {
+            if (e.alpha !== null) {
+                hardwareConfirmed = true;
+                window.removeEventListener('deviceorientationabsolute', testEvent);
+                resolve(true);
+            }
+        }
+        window.addEventListener('deviceorientationabsolute', testEvent);
+        setTimeout(() => {
+            if (!hardwareConfirmed) {
+                window.removeEventListener('deviceorientationabsolute', testEvent);
+                resolve(false);
+            }
+        }, 1500);
+    });
+}
+
+// Stabilization Heuristic
+function startAndroidCompass() {
+    let stableReadingsCount = 0;
+    const REQUIRED_STABLE_READINGS = 30;
+    const MAX_JUMP = 15;
+
+    window.addEventListener('deviceorientationabsolute', function(e) {
+        if (e.alpha === null) return;
+        let currentAlpha = 360 - e.alpha;
+
+        if (!compassReady) {
+            if (lastHeading !== null) {
+                let delta = Math.abs(currentAlpha - lastHeading);
+                if (delta < MAX_JUMP) stableReadingsCount++;
+                else stableReadingsCount = 0;
+
+                if (stableReadingsCount >= REQUIRED_STABLE_READINGS) {
+                    compassReady = true;
+                    const led = document.querySelector('.hardware-led');
+                    if (led) led.style.backgroundColor = 'var(--accent-green)';
+                }
+            }
+            lastHeading = currentAlpha;
+            return;
+        }
+    }, true);
+}
+
+
 /* --- OPTIMIZED HARDWARE SENSOR & GPS LOGIC --- */
 let sensorsHooked = false;
 let hasHardwareCompass = false; 
@@ -434,16 +506,29 @@ document.body.addEventListener('click', async () => {
     if (sensorsHooked) return;
     sensorsHooked = true;
 
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission === 'granted') {
-                window.addEventListener('deviceorientation', handleCompass, true);
-            }
-        } catch (error) { console.error('Permission error:', error); }
+    const led = document.querySelector('.hardware-led');
+    if (led) led.style.backgroundColor = 'var(--accent-orange)';
+
+    hasHardwareCompass = await checkAndroidHardware();
+
+    if (hasHardwareCompass) {
+        startAndroidCompass();
+
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === 'granted') {
+                    window.addEventListener('deviceorientation', handleCompass, true);
+                }
+            } catch (error) { console.error('Permission error:', error); }
+        } else {
+            window.addEventListener('deviceorientationabsolute', handleCompass, true);
+            window.addEventListener('deviceorientation', handleCompass, true);
+        }
     } else {
-        window.addEventListener('deviceorientationabsolute', handleCompass, true);
-        window.addEventListener('deviceorientation', handleCompass, true);
+        if (led) led.style.backgroundColor = 'var(--accent-red)';
+        showModal('noMagnetometerModal');
+        headingDirty = false;
     }
 }, { once: true });
 
@@ -547,6 +632,19 @@ function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
 
 function updateAzimuthVectors() {
     if (!myPos) return;
+
+    if (!hasHardwareCompass) {
+        if (azimuthLine) {
+            map.removeLayer(azimuthLine);
+            azimuthLine = null;
+        }
+        if (placeAzimuthLine && placeMap) {
+            placeMap.removeLayer(placeAzimuthLine);
+            placeAzimuthLine = null;
+        }
+        return;
+    }
+
     const endPoint = calculateEndpoint(myPos[0], myPos[1], myHeading);
 
     if (!azimuthLine) {
