@@ -402,19 +402,8 @@ z-index:26000 !important;
 
 <div id="appContent">
 <header>
-<div class="menu-btn" onclick="toggleMenu()">☰</div>
 <div class="hardware-led"></div>CarpFisher IQ
 </header>
-
-<div id="sideMenu" class="side-menu">
-<div style="position:absolute;top:16px;right:16px;font-size:28px;cursor:pointer;color:var(--accent-blue);font-weight:900;" onclick="toggleMenu()">✕</div>
-<div class="side-menu-item" onclick="showPage('session')">🎣 SESSION</div>
-<div class="side-menu-item" onclick="showPage('statistics')">📊 STATISTICS</div>
-<div class="side-menu-item" onclick="showPage('swims')">📍 SWIMS</div>
-<div class="side-menu-item" onclick="showPage('about')">ℹ️ ABOUT</div>
-</div>
-
-
 
 <div id="sessionPage">
 <div id="map"></div>
@@ -428,7 +417,7 @@ z-index:26000 !important;
     <div class="map-selector">
         <button id="btn-topo" class="map-btn active" onclick="switchBaseLayer('topo')">Topo</button>
         <button id="btn-sat" class="map-btn" onclick="switchBaseLayer('sat')">Sat</button>
-        <button id="btn-cyber" class="map-btn" onclick="switchBaseLayer('cyber')">Cyber</button>
+        <button id="btn-cyber" class="map-btn" onclick="switchBaseLayer('cyber')">Night</button>
     </div>
 </div>
 
@@ -436,17 +425,17 @@ z-index:26000 !important;
 
 <div class="scroll-container">
     <div class="card glass-panel">
-        <h3>Telemetry Logs & Sessions</h3>
+        <h3>Sessions & Logs</h3>
         <div id="history"></div>
     </div>
 </div>
 
 <div class="modal" id="sessionModal"><div class="box">
-    <h3>Initialize New Session</h3>
-    <input id="sessionName" placeholder="Session Identifier Name">
+    <h3>Start New Session</h3>
+    <input id="sessionName" placeholder="Session Name">
     <select id="spotSelect"></select>
     <button onclick="createSession()" class="success" style="width: 100%;">Start Session</button>
-    <button class="secondary" onclick="closeModal('sessionModal')" style="margin-top:6px; width: 100%;">Abort</button>
+    <button class="secondary" onclick="closeModal('sessionModal')" style="margin-top:6px; width: 100%;">Cancel</button>
 </div></div>
 
 <div class="modal" id="fishModal"><div class="box">
@@ -469,7 +458,7 @@ z-index:26000 !important;
 <div class="modal" id="confirmEndModal"><div class="box" style="border-color: var(--accent-red);">
     <h3>Finish Session?</h3>
     <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4; text-align: center;">
-        Are you sure you want to shut down telemetry logs and archive this active angling session?
+        Are you sure you want to finish active angling session?
     </p>
     <div style="display: flex; gap: 10px;">
         <button class="secondary" onclick="closeModal('confirmEndModal')">NO</button>
@@ -481,7 +470,7 @@ z-index:26000 !important;
 <div class="modal" id="noMagnetometerModal"><div class="box" style="border-color: var(--accent-orange);">
     <h3 style="color: var(--accent-orange);">Sensor Warning</h3>
     <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.4; text-align: center;">
-        Your Android phone does not have a hardware magnetometer (compass). The directional azimuth line has been disabled.
+        Your Android device does not have a hardware magnetometer (compass). The directional azimuth line has been disabled.
     </p>
     <button class="warning" onclick="closeModal('noMagnetometerModal')" style="width: 100%;">Acknowledge</button>
 </div></div>
@@ -528,7 +517,7 @@ function createTileLayer(key) {
 
 let currentEngine = 'topo';
 let mainTile = createTileLayer(currentEngine);
-const map=L.map('map', { zoomControl: false, layers: [mainTile] }).setView([50.45,30.52],12);
+const map=L.map('map', { zoomControl: false, closePopupOnClick:false, layers: [mainTile] }).setView([50.45,30.52],12);
 
 function switchBaseLayer(key) {
     map.removeLayer(mainTile);
@@ -987,7 +976,7 @@ function redraw(){
  };
 
  db.spots.forEach(s=>{
-    let m=L.marker([s.lat,s.lng]).bindPopup(`📍 ${s.name}<br><button class="remove-btn" onclick="askDeleteSwim('${s.id}')">Delete Swim</button>`);
+    let m=L.marker([s.lat,s.lng]).bindPopup(`📍 ${s.name}<br><button class="remove-btn" onclick="askDeleteSwim('${s.id}')">Delete Swim</button>`,{autoClose:false,closeOnClick:false});
     drawToBoth(m);
  });
 
@@ -996,21 +985,21 @@ function redraw(){
     const anchor = getCalculatedAnchor(sess);
 
     if(sess.customBase){
-       drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓ Manual Base Anchor point"));
+       drawToBoth(L.circleMarker([sess.customBase.lat,sess.customBase.lng],{color:"#a855f7", fillColor:"#c084fc", fillOpacity:0.8, radius:9}).bindPopup("⚓Base point"));
     }
     sess.baits.forEach((b, index)=>{
        let iconBait = L.divIcon({ className: '', html: '<div class="pulsing-marker-bait"></div>', iconSize: [12,12], iconAnchor: [6,6] });
        let baitMarker = L.marker([b.lat,b.lng], {icon: iconBait});
-       let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">Purge Object</button></div>`;
-       baitMarker.bindPopup(popupContent);
+       let popupContent = `<div>🎯 ${b.desc}<br>${b.distance}m from base<br><button class="remove-btn" onclick="removeItem('baits', '${sess.id}', ${index})">Delete</button></div>`;
+       baitMarker.bindPopup(popupContent,{autoClose:false,closeOnClick:false});
        drawToBoth(baitMarker);
        if(anchor) drawToBoth(L.polyline([anchor, [b.lat, b.lng]], {color:"#ff00ff", weight: 2, className: 'animated-path'}));
     });
     sess.casts.forEach((c, index)=>{
        let iconCast = L.divIcon({ className: '', html: '<div class="pulsing-marker-cast"></div>', iconSize: [12,12], iconAnchor: [6,6] });
        let castMarker = L.marker([c.lat,c.lng], {icon: iconCast});
-       let popupContent = `<div>🚀 ${c.desc}<br>${c.distance}m from base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">Purge Object</button></div>`;
-       castMarker.bindPopup(popupContent);
+        let popupContent = `<div>🎣 ${c.desc}<br>${c.distance}m from base<br><button class="remove-btn" onclick="removeItem('casts', '${sess.id}', ${index})">Delete</button></div>`;
+       castMarker.bindPopup(popupContent,{autoClose:false,closeOnClick:false});
        drawToBoth(castMarker);
        if(anchor) drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2, className: 'animated-path'}));
     });
@@ -1114,24 +1103,24 @@ function render(){
  document.getElementById("active").innerHTML = a ? `
  <div class="glass-panel active-session-card">
  <div style="display:flex; justify-content:space-between; align-items:center;">
-   <b style="color:var(--accent-green); font-size:0.85rem;">CONSOLE: ${a.name}</b>
+   <b style="color:var(--accent-green); font-size:0.85rem;">SESSION: ${a.name}</b>
    <span class="live-indicator"><span class="live-dot"></span>LIVE</span>
  </div>
  <div style="margin-top:4px; font-size:0.75rem; color:var(--text-muted);">
-   Swim: <b>${a.spotName}</b> | Array: ${a.customBase ? 'Anchor Base' : 'GPS Mobile'}
+   Swim: <b>${a.spotName}</b> | Position from: <b>${a.customBase ? 'Manual point' : 'GPS Mobile'}</b>
  </div>
  <div class="metrics-row">
     <div class="metric-box"><div class="metric-val">${a.fish.length}</div><div class="metric-lbl">Catches</div></div>
     <div class="metric-box"><div class="metric-val">${a.baits.length}</div><div class="metric-lbl">Baits Set</div></div>
-    <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Casts Run</div></div>
+    <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Rod Casts</div></div>
  </div>
  <div class="action-grid">
-   <button onclick="startBase()">⚓ Anchor</button>
+   <button onclick="startBase()">⚓ Add Base point(manual)</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
    <button onclick="startBait()" class="warning">🎯 Add Bait</button>
-   <button onclick="startCast()" class="danger">🚀 Log Cast</button>
+   <button onclick="startCast()" class="danger">🎣 Log Cast</button>
  </div>
- <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">Terminate Run</button>
+ <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">FINISH SESSION</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Deployments Detected.</div>`;
 
  let h="";
@@ -1157,7 +1146,7 @@ function render(){
        </div>
        <div class="history-meta-grid">
            <div class="history-meta-item" style="grid-column: span 2;">
-               <div class="history-meta-label">Deployment Timeline</div>
+               <div class="history-meta-label">Session Timeline</div>
                <div class="history-meta-value">${timeline}</div>
            </div>
            <div class="history-meta-item">
@@ -1172,7 +1161,7 @@ function render(){
        
        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
            <button class="preview-btn ${isPreviewing?'active':''}" style="margin-top: 0; padding: 6px 12px; font-size: 0.65rem;" onclick="previewSession('${s.id}')">
-               ${isPreviewing ? '🔒 Close Matrix' : '👁️ View Matrix'}
+               ${isPreviewing ? '🔒 Close' : '👁️ View'}
            </button>
            <button class="danger" style="margin-top:0;padding:6px 12px;font-size:.65rem;" onclick="askDeleteSession('${s.id}')">🗑 Delete</button>
        </div>`;
@@ -1209,7 +1198,7 @@ function render(){
    } else {
       h+=`
       <div style="font-size: 0.65rem; color: var(--text-muted); text-align: center; padding: 6px; background: rgba(0,0,0,0.15); border-radius: 6px; margin-top: 8px; border: 1px dashed rgba(255,255,255,0.04);">
-          No specimen logs indexed.
+          No specimen logged.
       </div>`;
    }
    h+="</div>";
@@ -1221,7 +1210,7 @@ function render(){
 }
 
 function openSession(){
- if(!db.spots.length) return alert("System requires configured Swim location vectors before layout deployment.");
+ if(!db.spots.length) return alert("System requires configured Swim location before starting a session.");
  const spotSelect = document.getElementById("spotSelect");
  spotSelect.innerHTML="";
  db.spots.forEach(s=>spotSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`);
