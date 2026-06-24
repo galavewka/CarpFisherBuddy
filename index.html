@@ -784,6 +784,24 @@ function updateAzimuthVectors() {
     if (!myPos) return;
 
     if (!hasHardwareCompass) {
+
+        const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
+        const icon = L.divIcon({ html: customGpsHtml, className: "", iconSize: [30,30], iconAnchor: [15,15] });
+
+        if(!me){
+            me = L.marker(myPos,{icon}).addTo(map);
+        } else {
+            me.setLatLng(myPos);
+        }
+
+        if(placeMap){
+            if(!placeMe){
+                placeMe = L.marker(myPos,{icon}).addTo(placeMap);
+            } else {
+                placeMe.setLatLng(myPos);
+            }
+        }
+
         if (azimuthLine) {
             map.removeLayer(azimuthLine);
             azimuthLine = null;
@@ -896,6 +914,54 @@ function showModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function closeTextModal() { closeModal('textModal'); cancelPlace(); }
 
+
+function removeSwim(swimId){
+ if(!confirm('Delete this swim?')) return;
+ db.spots=db.spots.filter(s=>s.id!==swimId);
+ persist();
+ redraw();
+ render();
+}
+
+function clearArchivedSessions(){
+ if(!confirm('Delete all archived sessions?')) return;
+ db.sessions=db.sessions.filter(s=>s.status==="active");
+ persist();
+ redraw();
+ render();
+}
+
+
+
+let deleteTarget=null;
+
+function askDeleteSession(id){
+ deleteTarget={type:'session',id:id};
+ document.getElementById('deleteText').innerText='Delete this session permanently?';
+ showModal('deleteModal');
+}
+
+function askDeleteSwim(id){
+ deleteTarget={type:'swim',id:id};
+ document.getElementById('deleteText').innerText='Delete this swim permanently?';
+ showModal('deleteModal');
+}
+
+function confirmDelete(){
+ if(!deleteTarget) return;
+ if(deleteTarget.type==='session'){
+   db.sessions=db.sessions.filter(x=>x.id!==deleteTarget.id);
+ }
+ if(deleteTarget.type==='swim'){
+   db.spots=db.spots.filter(x=>x.id!==deleteTarget.id);
+ }
+ persist();
+ closeModal('deleteModal');
+ redraw();
+ render();
+ deleteTarget=null;
+}
+
 let layers=[];
 let placeLayers=[];
 
@@ -921,7 +987,8 @@ function redraw(){
  };
 
  db.spots.forEach(s=>{
-    drawToBoth(L.marker([s.lat,s.lng]).bindPopup("📍 "+s.name));
+    let m=L.marker([s.lat,s.lng]).bindPopup(`📍 ${s.name}<br><button class="remove-btn" onclick="askDeleteSwim('${s.id}')">Delete Swim</button>`);
+    drawToBoth(m);
  });
 
  db.sessions.forEach(sess=>{
@@ -1107,6 +1174,7 @@ function render(){
            <button class="preview-btn ${isPreviewing?'active':''}" style="margin-top: 0; padding: 6px 12px; font-size: 0.65rem;" onclick="previewSession('${s.id}')">
                ${isPreviewing ? '🔒 Close Matrix' : '👁️ View Matrix'}
            </button>
+           <button class="danger" style="margin-top:0;padding:6px 12px;font-size:.65rem;" onclick="askDeleteSession('${s.id}')">🗑 Delete</button>
        </div>`;
 
    if(s.fish && s.fish.length > 0){
@@ -1308,6 +1376,18 @@ function openPlace() {
    placeTile = createTileLayer(currentEngine).addTo(placeMap);
    placeMap.setView(map.getCenter(),map.getZoom());
  }
+
+ if(myPos){
+   const customGpsHtml = `<div class="gps-dot-wrapper"><div class="gps-pulse-aura"></div><div class="gps-core-dot"></div></div>`;
+   const icon = L.divIcon({html:customGpsHtml,className:"",iconSize:[30,30],iconAnchor:[15,15]});
+
+   if(!placeMe){
+      placeMe = L.marker(myPos,{icon}).addTo(placeMap);
+   }else{
+      placeMe.setLatLng(myPos);
+   }
+ }
+
  updateAzimuthVectors();
  setTimeout(()=>{ 
    placeMap.invalidateSize(); 
@@ -1542,5 +1622,15 @@ function showPage(page){
 
 redraw(); render();
 </script>
+
+<div class="modal" id="deleteModal"><div class="box" style="border-color:#ff3366">
+<h3>Delete Item</h3>
+<p id="deleteText">Are you sure?</p>
+<div style="display:flex;gap:10px">
+<button class="secondary" onclick="closeModal('deleteModal')">Cancel</button>
+<button class="danger" onclick="confirmDelete()">Delete</button>
+</div>
+</div></div>
+
 </body>
 </html>
