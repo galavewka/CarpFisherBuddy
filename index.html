@@ -16,6 +16,7 @@
     --accent-green: #00ff87;
     --accent-orange: #ff8800;
     --accent-red: #ff3366;
+    --accent-purple: #c084fc;
     --text-main: #f3f4f6;
     --text-muted: #9ca3af;
     --border-glass: rgba(255, 255, 255, 0.12);
@@ -141,6 +142,8 @@ button.danger { background: rgba(255, 51, 102, 0.12); border-color: rgba(255,51,
 button.danger:hover { background: rgba(255, 51, 102, 0.28); border-color: var(--accent-red); box-shadow: 0 0 14px rgba(255, 51, 102, 0.35); }
 button.warning { background: rgba(255, 136, 0, 0.12); border-color: rgba(255,136,0,0.25); }
 button.warning:hover { background: rgba(255, 136, 0, 0.28); border-color: var(--accent-orange); box-shadow: 0 0 14px rgba(255, 136, 0, 0.35); }
+button.purple { background: rgba(192, 132, 252, 0.12); border-color: rgba(192, 132, 252, 0.25); }
+button.purple:hover { background: rgba(192, 132, 252, 0.28); border-color: var(--accent-purple); box-shadow: 0 0 14px rgba(192, 132, 252, 0.35); }
 
 .map-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: rgba(0,0,0,0.5); padding: 3px; border-radius: 8px; border: 1px solid var(--border-glass); }
 .map-btn { font-size: 0.65rem; padding: 6px 2px; background: transparent; border: 1px solid transparent; opacity: 0.4; border-radius: 6px; }
@@ -165,11 +168,12 @@ body.session-active #map { height: 42vh; }
 
 .modal { display: none; position: fixed; inset: 0; background: rgba(1, 3, 7, 0.9); align-items: center; justify-content: center; z-index: 20000; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 16px; }
 .modal.open { display: flex; }
-.box { background: var(--bg-glass-heavy); border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(0,240,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; width: 100%; max-width: 340px; box-sizing: border-box; }
+.box { background: var(--bg-glass-heavy); border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(0,240,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; width: 100%; max-width: 340px; box-sizing: border-box; max-height: 90vh; overflow-y: auto; }
 .box h3 { margin-top: 0; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #fff; }
 
-input, select { width: 100%; padding: 10px 12px; margin: 6px 0 12px 0; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); color: var(--text-main); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
-input:focus, select:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 10px rgba(0,240,255,0.25); }
+input, select, textarea { width: 100%; padding: 10px 12px; margin: 6px 0 12px 0; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); color: var(--text-main); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; font-size: 0.9rem; transition: all 0.2s ease; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 10px rgba(0,240,255,0.25); }
+textarea { resize: vertical; min-height: 60px; }
 
 #placeMode { display: none; position: fixed; inset: 0; z-index: 30000; background: var(--bg-main); }
 #placeMode.open { display: block; }
@@ -312,6 +316,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent-blue); box
 
 .leaflet-control-container { display: none !important; }
 
+/* Marker Survey UI */
+.survey-active-panel { border: 1px solid rgba(192, 132, 252, 0.4); box-shadow: 0 0 25px rgba(192, 132, 252, 0.15); margin: 4px 12px; padding: 10px; border-radius: 12px; background: rgba(13, 10, 25, 0.85); }
+.survey-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(192, 132, 252, 0.2); padding-bottom: 6px;}
+.survey-title { font-size: 0.85rem; font-weight: 900; color: var(--accent-purple); text-transform: uppercase; letter-spacing: 1px; }
+.bottom-type-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.3);}
+.survey-chart-container { height: 180px; position: relative; margin-top: 10px; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 6px; border: 1px solid rgba(255,255,255,0.05); }
+
 .menu-btn{
 position:absolute;
 left:12px;
@@ -448,6 +459,30 @@ z-index:26000 !important;
     <button class="secondary" onclick="closeModal('fishModal')" style="margin-top:6px; width: 100%;">Cancel</button>
 </div></div>
 
+<div class="modal" id="newSurveyModal"><div class="box" style="border-color: var(--accent-purple);">
+    <h3 style="color: var(--accent-purple);">Init Marker Survey</h3>
+    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">Azimuth calculated from cast landing coordinates.</p>
+    <input id="surveyNameInput" placeholder="Profile Name (e.g. Left Margin)">
+    <button onclick="finishSurveyPlacement()" class="purple" style="width: 100%;">Begin Profiling</button>
+    <button class="secondary" onclick="closeModal('newSurveyModal')" style="margin-top:6px; width: 100%;">Cancel</button>
+</div></div>
+
+<div class="modal" id="addReadingModal"><div class="box" style="border-color: var(--accent-purple);">
+    <h3 style="color: var(--accent-purple);">Log Bottom Reading</h3>
+    <input id="readingDist" type="number" step="0.1" placeholder="Distance (m)">
+    <input id="readingDepth" type="number" step="0.1" placeholder="Depth (m)">
+    <select id="readingType"></select>
+    <textarea id="readingNotes" placeholder="Notes (e.g., strong tap, smooth drag)"></textarea>
+    <button onclick="saveSurveyReading()" class="purple" style="width: 100%;">Save Reading</button>
+    <button class="secondary" onclick="closeModal('addReadingModal')" style="margin-top:6px; width: 100%;">Cancel</button>
+</div></div>
+
+<div class="modal" id="readingDetailsModal"><div class="box">
+    <h3 id="detTitle" style="color: var(--accent-blue);">Reading Details</h3>
+    <div id="detContent" style="font-size: 0.85rem; color: #fff; line-height: 1.5; margin-bottom: 12px;"></div>
+    <button class="secondary" onclick="closeModal('readingDetailsModal')" style="width: 100%;">Close</button>
+</div></div>
+
 <div class="modal" id="textModal"><div class="box">
     <h3 id="textTitle">Metadata Prompt</h3>
     <input id="textInput">
@@ -509,6 +544,30 @@ z-index:26000 !important;
 let db=JSON.parse(localStorage.getItem("fishbuddy_rebuild")||'{"spots":[],"sessions":[]}');
 const persist=()=>localStorage.setItem("fishbuddy_rebuild",JSON.stringify(db));
 
+/* --- MARKER SURVEY FEATURE: bottom type config --- */
+const bottomTypes = {
+    'silt': { label: '🟤 Silt', color: '#8B4513' },
+    'soft_silt': { label: '⚫ Soft Silt', color: '#2F4F4F' },
+    'clay': { label: '🟠 Clay', color: '#D2691E' },
+    'sand': { label: '⚪ Sand', color: '#F4A460' },
+    'gravel': { label: '⚫ Gravel', color: '#808080' },
+    'hard': { label: '🪨 Hard', color: '#A9A9A9' },
+    'weed': { label: '🌿 Weed', color: '#228B22' },
+    'mussels': { label: '🦪 Mussels', color: '#483D8B' },
+    'light_weed': { label: '🌱 Light Weed', color: '#90EE90' },
+    'unknown': { label: '❓ Unknown', color: '#FFFFFF' }
+};
+
+function populateBottomSelect() {
+    const sel = document.getElementById('readingType');
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (const [key, val] of Object.entries(bottomTypes)) {
+        sel.innerHTML += `<option value="${key}">${val.label}</option>`;
+    }
+}
+populateBottomSelect();
+
 function createTileLayer(key) {
     if (key === 'topo') return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
     if (key === 'sat') return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
@@ -531,6 +590,7 @@ function switchBaseLayer(key) {
 
 let me=null, azimuthLine=null, placeMe=null, placeAzimuthLine=null;
 let placeMap=null, placeTile=null, myPos=null, myHeading=0, previewSessionId=null;
+let activeSurveyId = null; // Tracks currently active marker survey within the session
 
 
 /* --- NEW FEATURES: Magnetometer Check & Calibration Gate --- */
@@ -769,6 +829,17 @@ function calculateEndpoint(lat, lng, heading, distanceMeters = 500) {
     return [(lat2 * 180) / Math.PI, (lon2 * 180) / Math.PI];
 }
 
+function calculateBearing(lat1, lon1, lat2, lon2) {
+    const toRad = (deg) => deg * Math.PI / 180;
+    const toDeg = (rad) => rad * 180 / Math.PI;
+    const dLon = toRad(lon2 - lon1);
+    lat1 = toRad(lat1); lat2 = toRad(lat2);
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    let brng = toDeg(Math.atan2(y, x));
+    return (brng + 360) % 360;
+}
+
 function updateAzimuthVectors() {
     if (!myPos) return;
 
@@ -1003,6 +1074,31 @@ function redraw(){
        drawToBoth(castMarker);
        if(anchor) drawToBoth(L.polyline([anchor, [c.lat, c.lng]], {color:"#ef4444", weight: 2, className: 'animated-path'}));
     });
+
+    // Marker Survey Overlays
+    if(sess.markerProfiles && anchor){
+       sess.markerProfiles.forEach(prof=>{
+          const isSelected = prof.id === activeSurveyId;
+          const lineColor = isSelected ? '#c084fc' : 'rgba(192, 132, 252, 0.4)';
+          const maxDist = prof.readings.length > 0 ? Math.max(...prof.readings.map(r=>r.distance)) + 10 : (prof.distance || 100);
+          const endPt = calculateEndpoint(anchor[0], anchor[1], prof.azimuth, maxDist);
+
+          drawToBoth(L.polyline([anchor, endPt], {color:lineColor, weight: isSelected ? 3 : 2, dashArray:'4,6'}));
+
+          prof.readings.forEach(r=>{
+             const rPt = calculateEndpoint(anchor[0], anchor[1], prof.azimuth, r.distance);
+             const bType = bottomTypes[r.type] || bottomTypes['unknown'];
+             const circle = L.circleMarker(rPt, {
+                radius: isSelected ? 6 : 4,
+                color: '#fff',
+                weight: 1,
+                fillColor: bType.color,
+                fillOpacity: 1
+             }).bindPopup(`<b>${prof.name}</b><br>Dist: ${r.distance}m<br>Depth: ${r.depth}m<br>Bottom: ${bType.label}`,{autoClose:false,closeOnClick:false});
+             drawToBoth(circle);
+          });
+       });
+    }
  });
 }
 
@@ -1114,12 +1210,47 @@ function render(){
     <div class="metric-box"><div class="metric-val">${a.baits.length}</div><div class="metric-lbl">Baits Set</div></div>
     <div class="metric-box"><div class="metric-val">${a.casts.length}</div><div class="metric-lbl">Rod Casts</div></div>
  </div>
+ ${activeSurveyId && a.markerProfiles && a.markerProfiles.find(p=>p.id===activeSurveyId) ? (() => {
+    const currentProfile = a.markerProfiles.find(p => p.id === activeSurveyId);
+    return `
+    <div class="survey-active-panel">
+        <div class="survey-header">
+            <span class="survey-title">🗺️ ${currentProfile.name}</span>
+            <span style="font-size: 0.65rem; background: rgba(192, 132, 252, 0.2); padding: 2px 6px; border-radius: 4px; color: #fff;">
+                AZM: ${Math.round(currentProfile.azimuth)}°
+            </span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button onclick="openAddReading()" class="purple" style="flex: 2;">+ Add Reading</button>
+            <button onclick="finishCurrentSurvey()" class="secondary" style="flex: 1;">Finish</button>
+        </div>
+        <div style="font-size: 0.7rem; color: var(--text-muted);">Points mapped: <b style="color: #fff;">${currentProfile.readings.length}</b></div>
+        ${currentProfile.readings.length > 0 ? `
+            <div class="survey-chart-container">
+                <canvas id="activeSurveyChart"></canvas>
+            </div>
+        ` : `<div style="text-align:center; padding: 20px; font-size: 0.75rem; color: rgba(255,255,255,0.4);">No readings yet. Cast and record points.</div>`}
+    </div>`;
+ })() : ''}
  <div class="action-grid">
    <button onclick="startBase()">⚓ Add Base point(manual)</button>
    <button onclick="openFish()" style="background:rgba(0, 240, 255, 0.15); border-color:var(--accent-blue);">🐟 Log Catch</button>
    <button onclick="startBait()" class="warning">🎯 Add Bait</button>
    <button onclick="startCast()" class="danger">🎣 Log Cast</button>
+   <button onclick="startMarkerSurvey()" class="purple" style="grid-column: span 2;">🗺️ Marker Survey</button>
  </div>
+ ${a.markerProfiles && a.markerProfiles.length > 0 ? `
+ <div style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+     <div style="font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; font-weight: 800;">Saved Surveys</div>
+     ${a.markerProfiles.map(p => `
+     <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; border: 1px solid rgba(192, 132, 252, 0.2);">
+         <span style="font-size: 0.75rem; font-weight: 700; color: #fff;">${p.name} <span style="opacity: 0.5; font-size: 0.65rem;">(${p.readings.length} pts)</span></span>
+         <div style="display: flex; gap: 4px;">
+             <button onclick="resumeSurvey('${p.id}')" style="padding: 4px 8px; font-size: 0.6rem; background: rgba(192, 132, 252, 0.2); border-color: rgba(192, 132, 252, 0.4); color: #fff; margin:0;">Open</button>
+             <button onclick="deleteSurvey('${p.id}')" style="padding: 4px 8px; font-size: 0.6rem; background: rgba(255, 51, 102, 0.15); border-color: rgba(255, 51, 102, 0.3); color: #ff3366; margin:0;">Del</button>
+         </div>
+     </div>`).join('')}
+ </div>` : ''}
  <button class="danger" onclick="endSession()" style="width:100%; margin-top:8px; font-weight:800; padding: 8px;">FINISH SESSION</button>
  </div>` : `<div class="card glass-panel" style="text-align:center; color: var(--text-muted); font-size:0.8rem; margin: 4px 12px;">No Active Session Started.</div>`;
 
@@ -1206,6 +1337,15 @@ function render(){
  document.getElementById("history").innerHTML=h;
 
  chartCallbacks.forEach(cb => cb());
+
+ // Render active marker survey chart, if applicable
+ if(a && activeSurveyId && a.markerProfiles){
+    const currentProfile = a.markerProfiles.find(p => p.id === activeSurveyId);
+    if(currentProfile && currentProfile.readings.length > 0){
+       setTimeout(() => renderSurveyChart('activeSurveyChart', currentProfile), 50);
+    }
+ }
+
  setTimeout(() => { map.invalidateSize(); }, 50);
 }
 
@@ -1242,11 +1382,13 @@ function createSession(){
    customBase:null,
    fish:[],
    baits:[],
-   casts:[]
+   casts:[],
+   markerProfiles:[]
  });
  closeModal("sessionModal");
  sessionName.value = "";
  previewSessionId = null; 
+ activeSurveyId = null;
  persist(); 
 function toggleMenu(){
  document.getElementById('sideMenu').classList.toggle('open');
@@ -1354,6 +1496,15 @@ function startCast(){
     openPlace(); 
 }
 
+function startMarkerSurvey(){
+    const s=activeSession();
+    if(!s) return;
+    if(!s.markerProfiles) s.markerProfiles = [];
+    checkAndLockAutoBase(s);
+    mode="survey_init";
+    openPlace();
+}
+
 function openPlace() {
  document.getElementById("placeMode").classList.add("open");
  if(!placeMap){
@@ -1415,6 +1566,11 @@ function acceptPlace() {
     textTitle.innerText="Swim Description";
     textInput.value="";
     showModal("textModal");
+    return;
+ }
+ if(mode==="survey_init"){
+    document.getElementById("surveyNameInput").value="";
+    showModal("newSurveyModal");
     return;
  }
  if(mode==="base"){
@@ -1550,6 +1706,7 @@ function confirmEndSession() {
  s.endTimestamp = Date.now();
  
  closeModal("confirmEndModal");
+ activeSurveyId = null;
  persist(); 
 function toggleMenu(){
  document.getElementById('sideMenu').classList.toggle('open');
@@ -1610,6 +1767,152 @@ function showPage(page){
 }
 
 redraw(); render();
+
+/* --- MARKER SURVEY FEATURE: profile & readings logic --- */
+
+function finishSurveyPlacement() {
+    const s = activeSession();
+    if (!s || !targetCoords) return;
+    if(!s.markerProfiles) s.markerProfiles = [];
+    const anchor = getCalculatedAnchor(s);
+    const calculatedAzimuth = anchor ? calculateBearing(anchor[0], anchor[1], targetCoords.lat, targetCoords.lng) : 0;
+
+    const newProfile = {
+        id: crypto.randomUUID(),
+        name: document.getElementById("surveyNameInput").value || `Survey ${s.markerProfiles.length + 1}`,
+        azimuth: calculatedAzimuth,
+        distance: distance, // initial landing distance
+        readings: []
+    };
+
+    s.markerProfiles.push(newProfile);
+    activeSurveyId = newProfile.id; // Auto select the new profile
+
+    closeModal("newSurveyModal");
+    targetCoords = null;
+    persist(); redraw(); render();
+}
+
+function openAddReading() {
+    document.getElementById("readingDist").value = "";
+    document.getElementById("readingDepth").value = "";
+    document.getElementById("readingNotes").value = "";
+    showModal("addReadingModal");
+}
+
+function saveSurveyReading() {
+    const s = activeSession();
+    if (!s || !activeSurveyId) return;
+    const profile = s.markerProfiles.find(p => p.id === activeSurveyId);
+    if (!profile) return;
+
+    profile.readings.push({
+        id: crypto.randomUUID(),
+        distance: parseFloat(document.getElementById("readingDist").value) || 0,
+        depth: parseFloat(document.getElementById("readingDepth").value) || 0,
+        type: document.getElementById("readingType").value,
+        notes: document.getElementById("readingNotes").value
+    });
+
+    // Sort by distance for correct chart rendering
+    profile.readings.sort((a,b) => a.distance - b.distance);
+
+    closeModal("addReadingModal");
+    persist(); redraw(); render();
+}
+
+function finishCurrentSurvey() {
+    activeSurveyId = null;
+    redraw(); render();
+}
+
+function resumeSurvey(profId) {
+    activeSurveyId = profId;
+    redraw(); render();
+}
+
+function deleteSurvey(profId) {
+    if(!confirm("Delete this marker survey profile completely?")) return;
+    const s = activeSession();
+    if(s) {
+        s.markerProfiles = s.markerProfiles.filter(p => p.id !== profId);
+        if(activeSurveyId === profId) activeSurveyId = null;
+        persist(); redraw(); render();
+    }
+}
+
+function showReadingDetails(reading) {
+    const bType = bottomTypes[reading.type] || bottomTypes['unknown'];
+    document.getElementById('detContent').innerHTML = `
+        <div style="margin-bottom: 8px;"><b>Distance:</b> ${reading.distance}m</div>
+        <div style="margin-bottom: 8px;"><b>Depth:</b> <span style="color:var(--accent-blue)">${reading.depth}m</span></div>
+        <div style="margin-bottom: 8px;"><b>Bottom:</b> <span class="bottom-type-indicator" style="background:${bType.color}"></span> ${bType.label}</div>
+        <div style="margin-top: 12px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; font-style: italic;">
+            ${reading.notes || 'No specific notes recorded.'}
+        </div>
+    `;
+    showModal('readingDetailsModal');
+}
+
+const chartInstances = {};
+
+function renderSurveyChart(canvasId, profile) {
+    const ctx = document.getElementById(canvasId);
+    if(!ctx) return;
+
+    if(chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+
+    const readings = profile.readings;
+    const distances = readings.map(r => r.distance);
+    const depths = readings.map(r => r.depth);
+    const pointColors = readings.map(r => bottomTypes[r.type]?.color || '#fff');
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: distances,
+            datasets: [{
+                label: 'Depth Profile',
+                data: depths,
+                borderColor: '#c084fc',
+                backgroundColor: 'rgba(192, 132, 252, 0.15)',
+                pointBackgroundColor: pointColors,
+                pointBorderColor: '#fff',
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                fill: true,
+                tension: 0.3,
+                stepped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { ticks: { color: '#9ca3af', font: {size: 9} }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: { reverse: true, ticks: { color: '#9ca3af', font: {size: 9} }, grid: { color: 'rgba(255,255,255,0.05)' } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const r = readings[context.dataIndex];
+                            return `${r.depth}m | ${bottomTypes[r.type]?.label || 'Unknown'}`;
+                        }
+                    }
+                }
+            },
+            onClick: (e, activeEls) => {
+                if (activeEls.length > 0) {
+                    showReadingDetails(readings[activeEls[0].index]);
+                }
+            }
+        }
+    });
+}
 </script>
 
 <div class="modal" id="deleteModal"><div class="box" style="border-color:#ff3366">
